@@ -1,3 +1,44 @@
 /* styles.css */
+* {
+    margin: 0;
+    padding: 0;
+}
 
-/* Add styles here to customize the appearance of your app */
+html,
+body {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+}
+
+.flex-container {
+    display: flex;
+
+    justify-content: flex-start;
+    align-items: stretch;
+    /* flex-flow: column nowrap; */
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: stretch;
+    height: 100%;
+}
+
+.item1 {
+    /* flex:0 1 auto; */
+    align-self: stretch;
+}
+
+.item2 {
+    /* flex:1 1 auto; */
+    flex-grow: 1;
+}
+
+.item3 {
+    /* flex:0 1 auto; */
+    flex-grow: 1;
+}
+
+canvas {
+    object-fit: none;
+    position: absolute;
+}
