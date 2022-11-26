@@ -6,457 +6,8 @@
  * to expose Node.js functionality from the main process.
  */
 
-
-class PlotView {
-
-  constructor(elementName, dataset, cursorCallback) {
-    this.canvasName = elementName
-    this.canvas = document.getElementById(this.canvasName);
-    this.ctx = this.canvas.getContext("2d");
-    this.BB = this.canvas.getBoundingClientRect();
-    this.offsetX = this.BB.left;
-    this.offsetY = this.BB.top;
-    this.cursorCallback = cursorCallback
-
-    // drag related variables
-    this.dragok = false;
-    this.startX;
-    this.startY;
-    this.cursorX = -1;
-    this.cursorY = -1;
-
-    this.currentX = 0, this.currentY = 0, this.currentZoom = 1;
-
-    this.xDivsMin = 0;
-    this.xDivsMax = 800;
-    this.dataset = dataset
-
-    // listen for mouse events
-    this.canvas.addEventListener("mousedown", this.mouseDown)
-    this.canvas.addEventListener("mouseup", this.mouseUp)
-    this.canvas.addEventListener("mousemove", this.mouseMove)
-    this.canvas.addEventListener("mousewheel", this.mouseWheel)
-    this.canvas.addEventListener("auxclick", this.mouseWheel)
-
-    this.YDIV = 50;
-    this.XDIV = 50;
-    this.xAxisHeight = 20
-    this.yAxisWidth = 40
-
-    window.addEventListener('resize', this.resizeCanvas, false);
-    this.resizeCanvas();
-    this.draw();
-  }
-
-  resetTransform() {
-    this.currentX = 0;
-    this.currentY = 0;
-    this.currentZoom = 1;
-    this.draw();
-  }
-
-  // clear the canvas
-  clear() {
-    this.ctx.save();
-    this.ctx.resetTransform();
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.restore();
-  }
-
-  drawXAxis() {
-    this.ctx.beginPath();
-    this.ctx.lineCap = 'butt';
-    this.ctx.lineWidth = 1
-    this.ctx.strokeStyle = 'black'
-    this.ctx.fillStyle = 'black'
-    // draw x axis
-    this.ctx.fillRect(0, this.canvas.height - this.xAxisHeight, this.canvas.width, this.canvas.height);
-    this.ctx.stroke();
-
-    this.ctx.font = "15px sans-serif";
-    this.ctx.fillStyle = 'grey'
-    this.ctx.textBaseline = 'middle'
-    this.ctx.textAlign = "center";
-    var range = this.xDivsMax - this.xDivsMin;
-    this.ctx.beginPath();
-    this.ctx.lineWidth = 1
-    this.ctx.strokeStyle = 'gray'
-    for (let i = this.yAxisWidth + this.XDIV; i < this.canvas.width + this.XDIV; i += this.XDIV) {
-      this.ctx.moveTo(i - (this.xDivsMin % this.XDIV), this.canvas.height - this.xAxisHeight);
-      this.ctx.lineTo(i - (this.xDivsMin % this.XDIV), 0 - this.xAxisHeight);
-
-      //ctx.save();
-      //ctx.translate(, );
-      //var angle = 0;
-      //ctx.rotate(angle * (Math.PI / 180));
-      this.ctx.fillText(
-        i - (this.xDivsMin % this.XDIV) + this.xDivsMin - this.yAxisWidth,
-        i - (this.xDivsMin % this.XDIV),
-        this.canvas.height - this.xAxisHeight / 2
-      );
-      //ctx.restore();
-    }
-    this.ctx.stroke();
-    this.ctx.textAlign = "left";
-    this.ctx.textBaseline = 'alphabetic'
-  }
-
-
-  drawYAxis() {
-    this.ctx.beginPath();
-    this.ctx.lineCap = 'butt';
-    this.ctx.lineWidth = 1
-    this.ctx.strokeStyle = 'black'
-    this.ctx.fillStyle = 'black'
-    // draw Y axis
-    this.ctx.fillRect(0, 0, this.yAxisWidth, this.canvas.height);
-    this.ctx.stroke();
-
-    this.ctx.font = "15px sans-serif";
-    this.ctx.fillStyle = 'grey'
-    this.ctx.textBaseline = 'middle'
-    this.ctx.textAlign = "center";
-    var range = this.xDivsMax - this.xDivsMin;
-    this.ctx.beginPath();
-    this.ctx.lineWidth = 1
-    this.ctx.strokeStyle = 'gray'
-    for (let i = this.canvas.height; i > -this.YDIV; i -= this.YDIV) {
-      this.ctx.fillText(
-        this.canvas.height - i,
-        this.yAxisWidth / 2,
-        i - this.xAxisHeight
-      );
-      this.ctx.moveTo(this.yAxisWidth, i - this.xAxisHeight);
-      this.ctx.lineTo(this.canvas.width, i - this.xAxisHeight);
-    }
-    this.ctx.stroke();
-    this.ctx.textAlign = "left";
-    this.ctx.textBaseline = 'alphabetic'
-  }
-
-  drawDataPath() {
-    this.ctx.beginPath();
-    this.ctx.lineWidth = 1
-    this.ctx.strokeStyle = 'orange'
-    this.ctx.lineCap = 'round'
-    this.ctx.moveTo(this.yAxisWidth + this.dataset[this.xDivsMin].x - this.xDivsMin, this.canvas.height - this.dataset[this.xDivsMin].y - this.xAxisHeight);
-    for (let i = this.xDivsMin; i < Math.min(this.canvas.width + this.xDivsMin, this.dataset.length); i++) {
-      this.ctx.lineTo(this.yAxisWidth + this.dataset[i].x - this.xDivsMin, this.canvas.height - this.dataset[i].y - this.xAxisHeight);
-    }
-    this.ctx.stroke();
-  }
-
-  drawHUD() {
-    if (this.cursorX > 0) {
-      this.ctx.save();
-      this.ctx.resetTransform();
-
-      this.ctx.font = "12px serif";
-      this.ctx.fillStyle = 'black'
-      var w = this.ctx.measureText("val = " + this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y).width
-
-      this.ctx.clearRect(this.canvas.width - w, 0, this.canvas.width, 12 * 3);
-
-      if (this.cursorX < this.yAxisWidth) return
-
-      // value at x 
-      this.ctx.fillText(
-        "val = " + this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y,
-        this.canvas.width - w,
-        12,
-        w
-      );
-      // current x pointer
-      this.ctx.fillText(
-        "x = " + parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth),
-        this.canvas.width - w,
-        12 * 2,
-        w
-      );
-      this.cursorCallback.setCursor(parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth))
-      this.cursorCallback.draw();
-      // current y pointer
-      this.ctx.fillText(
-        "y = " + parseInt(this.cursorY - this.xAxisHeight),
-        this.canvas.width - w,
-        12 * 3,
-        w
-      );
-      this.ctx.restore();
-
-      this.ctx.beginPath();
-      this.ctx.lineWidth = 1
-      this.ctx.strokeStyle = 'grey'
-      this.ctx.lineCap = 'butt'
-      this.ctx.moveTo(this.cursorX, 0);
-      this.ctx.lineTo(this.cursorX, this.canvas.height);
-      this.ctx.moveTo(0, this.canvas.height - this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y - this.xAxisHeight);
-      this.ctx.lineTo(this.canvas.width, this.canvas.height - this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y - this.xAxisHeight);
-      this.ctx.stroke();
-
-      this.ctx.clearRect(
-        0,
-        this.canvas.height - this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y - this.xAxisHeight - 10,
-        this.yAxisWidth,
-        20
-      );
-      this.ctx.textBaseline = 'middle'
-      this.ctx.fillText(
-        this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y.toFixed(1),
-        2,
-        this.canvas.height - this.dataset[parseInt(this.cursorX + this.xDivsMin - this.yAxisWidth)].y - this.xAxisHeight,
-      );
-      this.ctx.textBaseline = 'alphabetic'
-    }
-  }
-
-  draw() {
-    //ctx.resetTransform();
-    //ctx.translate(currentX, 0 /*currentY*/);
-    //ctx.scale(currentZoom,currentZoom);
-    this.clear();
-    this.drawDataPath();
-    this.drawXAxis();
-    this.drawYAxis();
-    this.drawHUD();
-  }
-
-  consumeMouseEvent(e) {
-    // tell the browser we're handling this mouse event
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  mouseDown = e => {
-    this.consumeMouseEvent(e);
-
-    var mx = parseInt(e.clientX - this.offsetX);
-    var my = parseInt(e.clientY - this.offsetY);
-
-    this.startX = mx;
-    this.startY = my;
-
-    this.dragok = true;
-  }
-
-  mouseUp = e => {
-    this.consumeMouseEvent(e);
-    this.dragok = false;
-  }
-
-  mouseMove = e => {
-    this.consumeMouseEvent(e);
-    // get the current mouse position
-    var mx = parseInt(e.clientX - this.offsetX);
-    this.cursorX = mx;
-    var my = parseInt(e.clientY - this.offsetY);
-    this.cursorY = this.canvas.height - my;
-    if (this.dragok) {
-      // calculate the distance the mouse has moved
-      // since the last mousemove
-      var dx = mx - this.startX;
-      var dy = my - this.startY;
-
-      if (this.xDivsMin - dx > 0) {
-        this.xDivsMin -= dx;
-        this.xDivsMax -= dx;
-      }
-
-      this.currentX += dx;
-      this.currentY += dy;
-
-      // reset the starting mouse position for the next mousemove
-      this.startX = mx;
-      this.startY = my;
-    }
-    // redraw the scene with the new rect positions
-    this.draw();
-
-    //setup cursor
-    if (false) {
-      document.body.style.cursor = "n-resize"
-    } else if (false) {
-      document.body.style.cursor = "e-resize"
-    } else {
-      document.body.style.cursor = "auto"
-    }
-  }
-
-  mouseWheel = e => {
-    var scroll = e.wheelDelta / 1024;
-    this.currentZoom += scroll;
-    this.draw();
-  }
-
-  resizeCanvas = e => {
-    if (e != null) this.consumeMouseEvent(e)
-    var rect = this.canvas.parentNode.getBoundingClientRect();
-    var width = rect.width;
-    var height = rect.height;
-
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.draw();
-  }
-}
-
-class GpsChart {
-  constructor(elementName, coords) {
-    this.elementName = elementName
-    this.coords = coords
-    this.minX = 0, this.minY = 0, this.maxX = 0, this.maxY = 0;
-    this.coords.forEach((p, i) => {
-      if (i === 0) { // if first point 
-        this.minX = this.maxX = this.coords[i].lon;
-        this.minY = this.maxY = this.coords[i].lat;
-      } else {
-        this.minX = Math.min(this.coords[i].lon, this.minX);
-        this.minY = Math.min(this.coords[i].lat, this.minY);
-        this.maxX = Math.max(this.coords[i].lon, this.maxX);
-        this.maxY = Math.max(this.coords[i].lat, this.maxY);
-      }
-    });
-
-
-    this.canvas = document.getElementById(this.elementName);
-    this.ctx = this.canvas.getContext("2d");
-    this.BB = this.canvas.getBoundingClientRect();
-    this.offsetX = this.BB.left;
-    this.offsetY = this.BB.top;
-
-    this.dragok = false;
-    this.startX;
-    this.startY;
-    this.cursorX = -1;
-    this.cursorY = -1;
-
-    this.currentX = 0, this.currentY = 0, this.currentZoom = 1;
-    this.pointer = 0;
-
-    this.canvas.addEventListener("mousedown", this.mouseDown)
-    this.canvas.addEventListener("mouseup", this.mouseUp)
-    this.canvas.addEventListener("mousemove", this.mouseMove)
-    this.canvas.addEventListener("mousewheel", this.mouseWheel)
-    //this.canvas.addEventListener("auxclick", this.mouseWheel)
-    window.addEventListener('resize', this.resizeCanvas, false);
-    this.resizeCanvas();
-  }
-
-  clear() {
-    this.ctx.save();
-    this.ctx.resetTransform();
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.restore();
-  }
-
-  draw() {
-    this.clear();
-    this.ctx.resetTransform();
-
-    this.ctx.translate(this.currentX, this.currentY);
-    this.ctx.scale(this.currentZoom, this.currentZoom);
-    //this.ctx.rotate(90 * Math.PI / 180)
-
-    const mapWidth = this.maxX - this.minX;
-    const mapHeight = this.maxY - this.minY;
-    const mapCenterX = (this.maxX + this.minX) / 2;
-    const mapCenterY = (this.maxY + this.minY) / 2;
-
-    const scale = Math.min(this.canvas.width / mapWidth, this.canvas.height / mapHeight) * 0.98;
-    this.ctx.beginPath();
-    this.ctx.lineWidth = 10
-    this.ctx.strokeStyle = 'orange'
-    this.ctx.lineCap = 'round'
-    for (let i = 0; i < this.coords.length; i++) {
-      this.ctx.lineTo(
-        (this.coords[i].lon - mapCenterX) * scale + this.canvas.width / 2,
-        this.canvas.height - ((this.coords[i].lat - mapCenterY) * scale + this.canvas.height / 2)
-      );
-    }
-    this.ctx.stroke();
-
-    const centerX = (this.coords[this.pointer].lon - mapCenterX) * scale + this.canvas.width / 2;
-    const centerY = this.canvas.height - ((this.coords[this.pointer].lat - mapCenterY) * scale + this.canvas.height / 2);
-    const radius = 2;
-
-    this.ctx.beginPath();
-    this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
-    this.ctx.fillStyle = 'green';
-    this.ctx.fill();
-    this.ctx.lineWidth = 5;
-    this.ctx.strokeStyle = '#003300';
-    this.ctx.stroke();
-  }
-
-
-  consumeMouseEvent(e) {
-    // tell the browser we're handling this mouse event
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  mouseDown = e => {
-    this.consumeMouseEvent(e);
-
-    var mx = parseInt(e.clientX - this.offsetX);
-    var my = parseInt(e.clientY - this.offsetY);
-
-    this.startX = mx;
-    this.startY = my;
-
-    this.dragok = true;
-  }
-
-  mouseUp = e => {
-    this.consumeMouseEvent(e);
-    this.dragok = false;
-  }
-
-  mouseMove = e => {
-    this.consumeMouseEvent(e);
-    // get the current mouse position
-    var mx = parseInt(e.clientX - this.offsetX);
-    this.cursorX = mx;
-    var my = parseInt(e.clientY - this.offsetY);
-    this.cursorY = this.canvas.height - my;
-    if (this.dragok) {
-      // calculate the distance the mouse has moved
-      // since the last mousemove
-      var dx = mx - this.startX;
-      var dy = my - this.startY;
-
-      this.currentX += dx;
-      this.currentY += dy;
-
-      // reset the starting mouse position for the next mousemove
-      this.startX = mx;
-      this.startY = my;
-    }
-    // redraw the scene with the new rect positions
-    this.draw();
-  }
-
-  mouseWheel = e => {
-    var scroll = e.wheelDelta / 1024;
-    this.currentZoom = Math.max(0, this.currentZoom + scroll);
-    this.draw();
-  }
-
-  resizeCanvas = e => {
-    if (e != null) this.consumeMouseEvent(e)
-    var rect = this.canvas.parentNode.getBoundingClientRect();
-    var width = rect.width;
-    var height = rect.height;
-
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.draw();
-  }
-
-  setCursor(ts) {
-    this.pointer = ts
-  }
-}
+const GpsChart = require("./js/GpsChart")
+const PlotView = require("./js/PlotChart")
 
 function getDistanceFromLatLonInKm(a, b) {
   var R = 6371; // Radius of the earth in km
@@ -477,7 +28,7 @@ function deg2rad(deg) {
 }
 
 function msToH(m) {
-  return m / 3.6e+6
+  return m / 3.6e+5
 }
 
 const coords = [
@@ -628,15 +179,87 @@ const coords = [
   { "ts": 1668885094341, "lat": 52.0281789, "lon": 11.2733755 },
 ]
 
+
 for (let i = 1; i < coords.length; i++) {
-  coords[i].ts += i * 1000;
+  coords[i].ts += i * 100;
 }
 
 const basets = coords[0].ts
 const dataset = []
 for (let i = 1; i < coords.length; i++) {
-  dataset.push({ x: (coords[i].ts - basets) / 1000, y: getDistanceFromLatLonInKm(coords[i - 1], coords[i]) / msToH(coords[i].ts - coords[i - 1].ts) });
+  dataset.push({
+    value: getDistanceFromLatLonInKm(coords[i - 1], coords[i]) / msToH(coords[i].ts - coords[i - 1].ts),
+    ts: coords[i].ts
+  });
 }
 
-const gpsChart = new GpsChart("gpsChart", coords)
-const plot1 = new PlotView("plot1", dataset, gpsChart)
+const finishline = {
+  start: {lat: 52.0269031, lon: 11.2802439},
+  end: {lat: 52.0273181, lon: 11.2804565}
+}
+const gpsChart = new GpsChart("gpsChart", coords, finishline)
+
+const plot1 = new PlotView(
+  "plot1",
+  dataset,
+  (i) => {
+    gpsChart.setPointer(i)
+    plot2.setPointer(i)
+  },
+  (i) => {
+    plot2.setScroll(i)
+  },
+  (i) => {
+    plot2.setZoom(i)
+  }
+)
+const plot2 = new PlotView(
+  "plot2",
+  dataset,
+  (i) => {
+    gpsChart.setPointer(i)
+    plot1.setPointer(i)
+  },
+  (i) => {
+    plot1.setScroll(i)
+  },
+  (i) => {
+    plot1.setZoom(i)
+  }
+)
+
+
+const laptimes = [
+  {lapn: 0, laptime: "1:23.456", timeofday: "13:37:42"},
+  {lapn: 1, laptime: "2:23.456", timeofday: "14:37:42"},
+  {lapn: 2, laptime: "3:23.456", timeofday: "15:37:42"},
+  {lapn: 3, laptime: "4:23.456", timeofday: "16:37:42"},
+  {lapn: 4, laptime: "5:23.456", timeofday: "17:37:42"},
+]
+
+for(let i = 0; i < laptimes.length; i++) {
+  const tr = document.createElement("tr")
+  const lapn = document.createElement("td")
+  lapn.textContent = laptimes[i].lapn
+  const laptime = document.createElement("td")
+  laptime.textContent = laptimes[i].laptime
+  const timeofday = document.createElement("td")
+  timeofday.textContent = laptimes[i].timeofday
+
+  tr.appendChild(lapn)
+  tr.appendChild(laptime)
+  tr.appendChild(timeofday)
+  tr.setAttribute("bg", false)
+  tr.setAttribute("id", "l" + i)
+  tr.style.backgroundColor = "white"
+  tr.onclick = function () {
+    if(tr.style.backgroundColor == "white") {
+      tr.style.backgroundColor = "lightgray"
+      console.log("grey")
+    } else {
+      tr.style.backgroundColor = "white"
+      console.log("white")
+    }
+  }
+  document.getElementById("lttable").appendChild(tr)
+}

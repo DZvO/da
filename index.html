@@ -17,19 +17,27 @@
 </head>
 
 <body>
-  <div class="flex-container">
-
-    <div class="item1">
-      <h1>DataLog</h1>
-      <p>lorem ipsum</p>
+  <div class="container">
+    <div class="red">
+      <div class="gpsbox"><canvas id="gpsChart"></canvas></div>
+      <div class="laptimes">
+        <button id="buttonload">load</button>
+        <table>
+          <thead>
+              <tr>
+                  <th>L#</th>
+                  <th>Laptime</th>
+                  <th>ToD</th>
+              </tr>
+          </thead>
+          <tbody id="lttable">
+              
+          </tbody>
+      </table>
+      </div>
     </div>
-    <div class="item2">
-      <canvas id="plot1"></canvas>
-    </div>
-    <div class="item3">
-      <canvas id="gpsChart"></canvas>
-    </div>
-
+    <div class="green"><canvas id="plot1"></canvas></div>
+    <div class="blue"><canvas id="plot2"></canvas></div>
   </div>
 
   <!-- You can also require other files to run in this process -->
