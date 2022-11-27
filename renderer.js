@@ -243,8 +243,8 @@ const plot3 = new ComparisonChart(
   "plot3",
   datasets,
   (i) => {
-    gpsChart.setPointer(i)
-    plot1.setPointer(i)
+    //gpsChart.setPointer(i)
+    //plot1.setPointer(i)
   },
   (i) => {
   },

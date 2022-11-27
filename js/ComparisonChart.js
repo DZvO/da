@@ -69,6 +69,7 @@ module.exports = class ComparisonChart {
   }
 
   drawXAxis() {
+    this.ctx.save()
     this.ctx.font = "15px sans-serif";
     this.ctx.textBaseline = 'middle'
     this.ctx.textAlign = "center";
@@ -83,8 +84,7 @@ module.exports = class ComparisonChart {
         )
       }
     }
-    this.ctx.textAlign = "left";
-    this.ctx.textBaseline = 'alphabetic'
+    this.ctx.restore()
   }
 
   getFormattedDate(ts) {
@@ -99,6 +99,10 @@ module.exports = class ComparisonChart {
     } catch (error) {
       return "-1"
     }
+  }
+
+  lerp(v0, v1, t) {
+    return v0 + t * (v1 - v0);
   }
 
   drawYAxis() {
@@ -165,14 +169,40 @@ module.exports = class ComparisonChart {
       // draw crosshair
       this.ctx.beginPath();
       this.ctx.lineWidth = 1
-      this.ctx.strokeStyle = 'grey'
+      this.ctx.strokeStyle = 'lightgray'
       this.ctx.lineCap = 'butt'
       // vertical
       //(this.xPointer + this.yAxisWidth - this.xScroll) / (1/this.xZoom) * 100 = i
       const cursorFromIndex = this.xPointer / (0.01 / this.xZoom) + this.yAxisWidth - this.xScroll
+      this.ctx.moveTo(this.cursorX, 0)
+      this.ctx.lineTo(this.cursorX, this.canvas.height)
+
       this.ctx.moveTo(cursorFromIndex, 0)
       this.ctx.lineTo(cursorFromIndex, this.canvas.height)
+
+      this.ctx.save()
+      this.ctx.font = "15px sans-serif";
+      this.ctx.textBaseline = 'middle'
+      this.ctx.textAlign = "center";
+      for(let ds = 0; ds < this.datasets.length; ds++) {
+        try {
+          const idx = (this.cursorX + this.offsets[ds] + this.xScroll - this.yAxisWidth) * this.xZoom
+          const l = this.lerp(this.datasets[ds][parseInt(idx)].ts, this.datasets[ds][parseInt(idx) + 1].ts, idx % 1)
+          
+          this.ctx.fillStyle = this.colors[ds]
+          this.ctx.fillText(
+            this.getFormattedDate(l),
+            this.cursorX,
+            this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * ds + 2
+          )
+        } catch (error) {
+          
+        }
+      }
+      this.ctx.restore()
+
       // horizontal
+      /*
       const indexVal = this.xPointer
       var valueAtCursor = this.canvas.height - this.xAxisHeight - this.datasets[indexVal].value
       this.ctx.moveTo(
@@ -183,7 +213,9 @@ module.exports = class ComparisonChart {
         this.canvas.width,
         valueAtCursor
       );
+      */
       this.ctx.stroke()
+      
 
       // draw popup on y axis
       /*this.ctx.clearRect(
@@ -207,7 +239,7 @@ module.exports = class ComparisonChart {
     this.drawDataPath();
     this.drawYAxis();
     this.drawXAxis();
-    //this.drawHUD();
+    this.drawHUD();
   }
 
   consumeMouseEvent(e) {
