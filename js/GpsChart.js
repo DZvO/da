@@ -31,6 +31,9 @@ module.exports = class GpsChart {
   
       this.currentX = 0, this.currentY = 0, this.currentZoom = 1;
       this.pointer = 0;
+
+      this.image = document.getElementById("trackOsl");
+
   
       this.canvas.addEventListener("mousedown", this.mouseDown)
       this.canvas.addEventListener("mouseup", this.mouseUp)
@@ -57,13 +60,29 @@ module.exports = class GpsChart {
       this.ctx.translate(-this.canvas.width / 2 + this.currentX, -this.canvas.height / 2 + this.currentY)
   
       //this.ctx.rotate(90 * Math.PI / 180)
-  
+
       const mapWidth = this.maxX - this.minX;
       const mapHeight = this.maxY - this.minY;
       const mapCenterX = (this.maxX + this.minX) / 2;
       const mapCenterY = (this.maxY + this.minY) / 2;
   
       const scale = Math.min(this.canvas.width / mapWidth, this.canvas.height / mapHeight) * 0.98;
+
+      const bgX = (11.268325 - mapCenterX) * scale + this.canvas.width / 2
+      const bgY = this.canvas.height - ((52.031677 - mapCenterY) * scale + this.canvas.height / 2)
+      const bgW = Math.abs(bgX - ((11.287551 - mapCenterX) * scale + this.canvas.width / 2))
+      const bgH = Math.abs(bgY - (this.canvas.height - ((52.024853 - mapCenterY) * scale + this.canvas.height / 2)))
+
+      this.ctx.save()
+      this.ctx.globalAlpha = 0.5
+      this.ctx.drawImage(this.image,
+        bgX,
+        bgY,
+        bgW,
+        bgH,
+      )
+      this.ctx.restore()
+
       this.ctx.beginPath();
       this.ctx.lineWidth = 0.75
       this.ctx.strokeStyle = 'orange'

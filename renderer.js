@@ -8,6 +8,7 @@
 
 const GpsChart = require("./js/GpsChart")
 const PlotView = require("./js/PlotChart")
+const ComparisonChart = require("./js/ComparisonChart")
 
 function getDistanceFromLatLonInKm(a, b) {
   var R = 6371; // Radius of the earth in km
@@ -190,7 +191,15 @@ for (let i = 1; i < coords.length; i++) {
   dataset.push({
     value: getDistanceFromLatLonInKm(coords[i - 1], coords[i]) / msToH(coords[i].ts - coords[i - 1].ts),
     ts: coords[i].ts
-  });
+  })
+}
+
+const dataset2 = []
+for (let i = 1; i < coords.length / 2; i++) {
+  dataset2.push({
+    value: (Math.sin(i / 2) + 1) * 10,
+    ts: coords[i].ts + 10000000
+  })
 }
 
 const finishline = {
@@ -228,37 +237,58 @@ const plot2 = new PlotView(
   }
 )
 
+const datasets = [dataset, dataset2]
+
+const plot3 = new ComparisonChart(
+  "plot3",
+  datasets,
+  (i) => {
+    gpsChart.setPointer(i)
+    plot1.setPointer(i)
+  },
+  (i) => {
+  },
+  (i) => {
+  }
+)
+
 
 const laptimes = [
-  {lapn: 0, laptime: "1:23.456", timeofday: "13:37:42"},
-  {lapn: 1, laptime: "2:23.456", timeofday: "14:37:42"},
-  {lapn: 2, laptime: "3:23.456", timeofday: "15:37:42"},
-  {lapn: 3, laptime: "4:23.456", timeofday: "16:37:42"},
-  {lapn: 4, laptime: "5:23.456", timeofday: "17:37:42"},
+  {lapn: 0, laptime: "1:23.456", timeofday: "13:37:42", user: "alex"},
+  {lapn: 1, laptime: "2:23.456", timeofday: "14:37:42", user: "alex"},
+  {lapn: 2, laptime: "3:23.456", timeofday: "15:37:42", user: "alex"},
+  {lapn: 3, laptime: "4:23.456", timeofday: "16:37:42", user: "alex"},
+  {lapn: 4, laptime: "5:23.456", timeofday: "17:37:42", user: "alex"},
 ]
 
 for(let i = 0; i < laptimes.length; i++) {
   const tr = document.createElement("tr")
+
   const lapn = document.createElement("td")
   lapn.textContent = laptimes[i].lapn
+
   const laptime = document.createElement("td")
   laptime.textContent = laptimes[i].laptime
+
   const timeofday = document.createElement("td")
   timeofday.textContent = laptimes[i].timeofday
+
+  const user = document.createElement("td")
+  user.textContent = laptimes[i].user
 
   tr.appendChild(lapn)
   tr.appendChild(laptime)
   tr.appendChild(timeofday)
-  tr.setAttribute("bg", false)
+  tr.append(user)
+
   tr.setAttribute("id", "l" + i)
-  tr.style.backgroundColor = "white"
   tr.onclick = function () {
-    if(tr.style.backgroundColor == "white") {
-      tr.style.backgroundColor = "lightgray"
-      console.log("grey")
+    if(tr.classList.contains("selected")) {
+      tr.classList.remove("selected")
+      console.log("unselected")
     } else {
-      tr.style.backgroundColor = "white"
-      console.log("white")
+      tr.classList.add("selected")
+      console.log("selected")
     }
   }
   document.getElementById("lttable").appendChild(tr)

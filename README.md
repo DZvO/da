@@ -5,6 +5,8 @@ Data analysis tool similar to Starlane MAAT or AIM Race Studio (with probably a 
 Basic functionality for the start is to load GPS logs and display graphs based on it.
 
 
+
+
 This is a minimal Electron application based on the [Quick Start Guide](https://electronjs.org/docs/latest/tutorial/quick-start) within the Electron documentation.
 
 A basic Electron application needs just these files:

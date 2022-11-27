@@ -98,8 +98,18 @@ tfoot {
     color: #fff;
 }
 
+.selected {
+    background-color: rgb(255, 148, 8);
+}
+
+tbody>tr:hover.selected {
+    /*background-color: rgb(255, 146, 14) !important;*/
+    font-weight: bold;
+}
+
 tbody>tr:hover {
-    background-color: bisque !important;
+    /*background-color: bisque !important;*/
+    font-weight: bold;
 }
 
 #buttonload {
