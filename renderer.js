@@ -9,6 +9,8 @@
 const GpsChart = require("./js/GpsChart")
 const PlotView = require("./js/PlotChart")
 const ComparisonChart = require("./js/ComparisonChart")
+var fs = require('graceful-fs')
+
 
 function getDistanceFromLatLonInKm(a, b) {
   var R = 6371; // Radius of the earth in km
@@ -292,4 +294,234 @@ for(let i = 0; i < laptimes.length; i++) {
     }
   }
   document.getElementById("lttable").appendChild(tr)
+}
+
+document.querySelector('#buttonload').addEventListener('click', () => {
+  downloadFiles()
+})
+
+document.querySelector('#buttonparse').addEventListener('click', () => {
+  parseFiles()
+})
+
+function downloadFiles() {
+  if(!fs.existsSync("dl"))
+    fs.mkdirSync("dl")
+  
+  fetch("http://esp32.local/list")
+  .then(response => response.text())
+  .then(async data => {
+    const elements = data.split(",")
+    elements.pop();
+
+    console.log("fetching " + elements)
+    for (let i = 0; i < elements.length; i++) {
+      if(elements[i].endsWith("log")) {
+        await fetch("http://esp32.local/get?filename=" + elements[i])
+        .then(response => response.text())
+        .catch((error) => {
+          console.error(error);
+        })
+        .then(data => {
+          document.querySelector('#loadprogress')
+            .setAttribute("value", (i / (elements.length-1)) * 100)
+          console.log("downloaded " + elements[i])
+          fs.rmSync("dl/" + elements[i])
+          fs.writeFileSync("dl/" + elements[i], data)
+          console.log("wrote " + elements[i])
+        }).catch((error) => {
+          console.error(error);
+        })
+      } else {
+        console.log("skipped " + elements[i])
+      }
+    }
+    parseFiles()
+  })
+}
+
+
+function parseFiles() {
+  if(!fs.existsSync("dl/processed"))
+    fs.mkdirSync("dl/processed") // move log files here after done
+  if(!fs.existsSync("dl/inprogress"))
+    fs.mkdirSync("dl/inprogress")// bunched up log lines before laps are extraced
+  if(!fs.existsSync("dl/laps"))
+    fs.mkdirSync("dl/laps")      // one lap per file
+
+  concatenateFiles()
+  sortAccumulationFile()
+  extractLaps()
+}
+
+function concatenateFiles() {
+  const dlContent = fs.readdirSync("dl")
+  console.log(dlContent)
+  const logFiles = dlContent
+    .filter(element => element.endsWith(".log"))
+  console.log(logFiles)
+  logFiles.forEach(element => {
+    const content = fs.readFileSync("dl/" + element, {encoding: "utf-8"})
+    console.log(content)
+    fs.appendFileSync("dl/inprogress/accumulation.log", content, "utf-8")
+    fs.copyFileSync("dl/" + element, "dl/processed/" + element)
+    fs.rmSync("dl/" + element)
+  })
+}
+
+function sortAccumulationFile() {
+  let acc = fs.readFileSync("dl/inprogress/accumulation.log", {encoding: "utf-8"})
+  let elements = acc.split("\n").sort().filter(e => e != "")
+  try {
+    fs.rmSync("dl/inprogress/accumulation.sorted.log")
+  } catch {}
+  for(let i = 0; i < elements.length; i++) {
+    fs.appendFileSync("dl/inprogress/accumulation.sorted.log", elements[i] + "\n", "utf-8")
+  }
+}
+
+function extractLaps() {
+  let t = fs
+    .readFileSync("dl/inprogress/accumulation.sorted.log", {encoding: "utf-8"})
+    .split("\n")
+    .sort()
+    .filter(e => e != "")
+    .map(e => {
+      let elements = e.split(",")
+      let date = elements[0] //221203_155034300
+      let sats = elements[1] // 1
+      let speed = elements[2] // 2.96
+      let lat = elements[3] // 51.5344429016
+      let lon = elements[4] // 6.9596800804
+      return {
+        timestamp: new Date(
+          "20" + date.substring(0, 2),
+          date.substring(2, 4) - 1,
+          date.substring(4, 6),
+          date.substring(7, 9),
+          date.substring(9, 11),
+          date.substring(11, 13),
+          date.substring(13, 15)
+        ),
+        sattelites: parseInt(sats),
+        speed: parseFloat(speed),
+        lat: parseFloat(lat),
+        lon: parseFloat(lon)
+      }
+  })
+  // TODO process which track we're dealing with
+  console.log(t)
+  let lastIndex = 0;
+  for(let i = 0; i < t.length - 1; i++) {
+      let crossingA = crossesStartFinishLine(t[i], t[i+1])
+      if(crossingA != false) {
+        let crossingAIndex = i
+        while(i < t.length - 1) {
+          i++
+          let crossingB = crossesStartFinishLine(t[i], t[i + 1])
+          if(crossingB != false) {
+            let crossingBIndex = i + 1
+            exportLapFile(t.slice(crossingAIndex, crossingBIndex + 1))
+            lastIndex = i
+            break
+          }
+        }
+      }
+  }
+
+  let writeBack = fs
+    .readFileSync("dl/inprogress/accumulation.sorted.log", {encoding: "utf-8"})
+    .split("\n")
+    .sort()
+    .filter(e => e != "")
+    .slice(lastIndex)
+  try {
+    fs.rmSync("dl/inprogress/accumulation.sorted.log")
+  } catch {}
+  for(let i = 0; i < writeBack.length; i++) {
+    fs.appendFileSync("dl/inprogress/accumulation.sorted.log", elements[i] + "\n", "utf-8")
+  }
+}
+
+function exportLapFile(sliceToExport) {
+  let filename = sliceToExport[0].timestamp.getTime()
+  let exportMap = {samples: sliceToExport}
+  let contentInJSON = JSON.stringify(exportMap)
+  fs.write("dl/laps/" + filename + ".json", contentInJSON)
+  processLapFile("dl/laps/" + filename + ".json")
+}
+
+function processLapFile(path) {
+  let j = JSON.parse(fs.readFileSync(path, {encoding: "utf-8"}))
+  if(j.has("info")) return
+  
+  let samples = j.samples
+  let startTime = null
+  let endTime = null
+  for(let i = 0; i < samples.length - 1 - 1; i++) {
+    let k = crossesStartFinishLine(samples[i], samples[i + 1])
+    if(k != false) {
+      startTime = samples[i].timestamp
+      // TODO use middle of tow samples as first approx
+      // TODO fancy calc using current speed (samples[i].speed) and distance from intersection point to point at i
+      break
+    }
+  }
+  for(let i = samples.length - 1; i > 1; i--) {
+    let k = crossesStartFinishLine(samples[i], samples[i - 1])
+    if(k != false) {
+      endTime = samples[i].timestamp
+      // TODO use middle of two samples as first approx
+      // TODO fancy calc using current speed (samples[i].speed) and distance from intersection point to point at i
+      break
+    }
+  }
+  // TODO add sector times
+
+  j["info"] = {laptime: (endTime - startTime)}
+  fs.writeFileSync(path, JSON.stringify(j)) // TODO check if this appends or rewrites file
+}
+
+function crossesStartFinishLine(from, to) {
+  // x = lon
+  // y = lat
+
+  return intersect(
+    from.lon, from.lat,
+    to.lon, to.lat,
+    finishline.start.lon, finishline.start.lat,
+    finishline.end.lon, finishline.end.lat
+  )
+}
+
+// line intercept math by Paul Bourke http://paulbourke.net/geometry/pointlineplane/
+// Determine the intersection point of two line segments
+// Return FALSE if the lines don't intersect
+function intersect(x1, y1, x2, y2, x3, y3, x4, y4) {
+
+  // Check if none of the lines are of length 0
+	if ((x1 === x2 && y1 === y2) || (x3 === x4 && y3 === y4)) {
+		return false
+	}
+
+	denominator = ((y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1))
+
+  // Lines are parallel
+	if (denominator === 0) {
+		return false
+	}
+
+	let ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denominator
+	let ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denominator
+
+  // is the intersection along the segments
+	if (ua < 0 || ua > 1 || ub < 0 || ub > 1) {
+		return false
+	}
+
+  // Return a object with the x and y coordinates of the intersection
+	let x = x1 + ua * (x2 - x1)
+	let y = y1 + ua * (y2 - y1)
+
+	return {x, y}
 }

@@ -23,9 +23,6 @@
   },
   "dependencies": {
     "bootstrap": "^5.2.2",
-    "jquery": "^3.6.1",
-    "lightweight-charts": "^3.8.0",
-    "noble": "^1.9.1",
-    "popper": "^1.0.1"
+    "graceful-fs": "^4.2.10"
   }
 }

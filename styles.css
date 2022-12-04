@@ -115,4 +115,14 @@ tbody>tr:hover {
 #buttonload {
     padding: 6px;
     width: 100%;
+    z-index: 0;
+}
+
+#buttonload>div {
+    z-index: 1;
+    position: absolute;
+    background-color: orange;
+    width: 10%;
+    height: 20px;
+    border-radius: 10px;
 }

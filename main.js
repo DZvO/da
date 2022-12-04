@@ -2,9 +2,11 @@
 const {app, BrowserWindow} = require('electron')
 const path = require('path')
 
+let mainWindow;
+
 function createWindow () {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -19,7 +21,7 @@ function createWindow () {
   mainWindow.loadFile('index.html')
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools()
+  mainWindow.webContents.openDevTools()
 }
 
 // This method will be called when Electron has finished
@@ -46,5 +48,8 @@ app.on('window-all-closed', function () {
 // code. You can also put them in separate files and require them here.
 
 try {
-  require('electron-reloader')(module)
+  const ignoredNode = /node_modules|[/\\]\./;
+  const res = /res|[/\\]\./;
+  const dl = /dl|[/\\]\./;
+  require('electron-reloader')(module, {ignore: [ignoredNode, res, dl]})
 } catch (_) {}

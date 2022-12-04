@@ -9,6 +9,8 @@ module.exports = class GpsChart {
           this.minX = this.maxX = this.coords[i].lon;
           this.minY = this.maxY = this.coords[i].lat;
         } else {
+          // x = lon
+          // y = lat
           this.minX = Math.min(this.coords[i].lon, this.minX);
           this.minY = Math.min(this.coords[i].lat, this.minY);
           this.maxX = Math.max(this.coords[i].lon, this.maxX);

@@ -5,8 +5,7 @@
   <meta charset="UTF-8">
   <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
-
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src http://esp32.local/">
   <link href="./styles.css" rel="stylesheet">
   <!--<link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
   <script src="node_modules/jquery/dist/jquery.min.js"></script>
@@ -21,7 +20,14 @@
     <div class="red">
       <div class="gpsbox"><canvas id="gpsChart"></canvas></div>
       <div class="laptimes">
-        <button id="buttonload">load</button>
+        <button id="buttonload" href="#" class="progress-button">
+          Load Data
+          <progress id="loadprogress" max="100" value="0"></progress>
+        </button>
+        <button id="buttonparse" href="#" class="progress-button">
+          Parse Data
+        </button>
+        
         <table>
           <thead>
               <tr>
