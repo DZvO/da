@@ -10,4 +10,5 @@
 - have a image of frequent tracks, mapped to gps map so we can overlay line on top of map ✅
     - make solution more generic (use json file in res/tracks)
     - have auto-detection which track a lap belongs to and select map accordingly 
-- 
+- use main process to handle downloading and processing files instead of renderer
+- proximity track detection
