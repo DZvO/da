@@ -1,23 +1,11 @@
 module.exports = class GpsChart {
-    constructor(elementName, coords, finishline) {
+    constructor(elementName, finishline) {
       this.elementName = elementName
-      this.coords = coords
+      this.elements = new Map()
+      this.colors = new Map()
       this.finishline = finishline
       this.minX = 0, this.minY = 0, this.maxX = 0, this.maxY = 0;
-      this.coords.forEach((p, i) => {
-        if (i === 0) { // if first point 
-          this.minX = this.maxX = this.coords[i].lon;
-          this.minY = this.maxY = this.coords[i].lat;
-        } else {
-          // x = lon
-          // y = lat
-          this.minX = Math.min(this.coords[i].lon, this.minX);
-          this.minY = Math.min(this.coords[i].lat, this.minY);
-          this.maxX = Math.max(this.coords[i].lon, this.maxX);
-          this.maxY = Math.max(this.coords[i].lat, this.maxY);
-        }
-      });
-  
+      //this.setupMinXY()  
   
       this.canvas = document.getElementById(this.elementName);
       this.ctx = this.canvas.getContext("2d");
@@ -44,6 +32,24 @@ module.exports = class GpsChart {
       //this.canvas.addEventListener("auxclick", this.mouseWheel)
       window.addEventListener('resize', this.resizeCanvas, false);
       this.resizeCanvas();
+    }
+
+    setupMinXY() {
+      this.elements.forEach((value) => {
+        value.samples.forEach((p, i) => {
+          if (i === 0) { // if first point 
+            this.minX = this.maxX = p.lon;
+            this.minY = this.maxY = p.lat;
+          } else {
+            // x = lon
+            // y = lat
+            this.minX = Math.min(p.lon, this.minX);
+            this.minY = Math.min(p.lat, this.minY);
+            this.maxX = Math.max(p.lon, this.maxX);
+            this.maxY = Math.max(p.lat, this.maxY);
+          }
+        })
+      });
     }
   
     clear() {
@@ -85,17 +91,20 @@ module.exports = class GpsChart {
       )
       this.ctx.restore()
 
-      this.ctx.beginPath();
-      this.ctx.lineWidth = 0.75
-      this.ctx.strokeStyle = 'orange'
-      this.ctx.lineCap = 'round'
-      for (let i = 0; i < this.coords.length; i++) {
-        this.ctx.lineTo(
-          (this.coords[i].lon - mapCenterX) * scale + this.canvas.width / 2,
-          this.canvas.height - ((this.coords[i].lat - mapCenterY) * scale + this.canvas.height / 2)
-        );
-      }
-      this.ctx.stroke();
+      this.elements.forEach((val, idx) => {
+        this.ctx.beginPath();
+        this.ctx.lineWidth = 0.75
+        this.ctx.strokeStyle = this.colors.get(idx)
+        this.ctx.lineCap = 'round'
+        for (let i = 0; i < val.samples.length; i++) {
+          this.ctx.lineTo(
+            (val.samples[i].lon - mapCenterX) * scale + this.canvas.width / 2,
+            this.canvas.height - ((val.samples[i].lat - mapCenterY) * scale + this.canvas.height / 2)
+          );
+        }
+        this.ctx.stroke();
+      })
+      
 
       this.ctx.beginPath();
       this.ctx.strokeStyle = 'black'
@@ -110,7 +119,7 @@ module.exports = class GpsChart {
       );
       this.ctx.stroke();
   
-      const centerX = (this.coords[this.pointer].lon - mapCenterX) * scale + this.canvas.width / 2;
+      /*const centerX = (this.coords[this.pointer].lon - mapCenterX) * scale + this.canvas.width / 2;
       const centerY = this.canvas.height - ((this.coords[this.pointer].lat - mapCenterY) * scale + this.canvas.height / 2);
       const radius = 1;
   
@@ -120,7 +129,7 @@ module.exports = class GpsChart {
       this.ctx.fill();
       this.ctx.lineWidth = 5;
       this.ctx.strokeStyle = '#003300';
-      this.ctx.stroke();
+      this.ctx.stroke();*/
     }
   
   
@@ -178,18 +187,36 @@ module.exports = class GpsChart {
     }
   
     resizeCanvas = e => {
-      if (e != null) this.consumeMouseEvent(e)
       var rect = this.canvas.parentNode.getBoundingClientRect();
       var width = rect.width;
       var height = rect.height;
   
       this.canvas.width = width;
       this.canvas.height = height;
+
+      this.BB = this.canvas.getBoundingClientRect()
+      this.offsetX = this.BB.left
+      this.offsetY = this.BB.top
+
       this.draw();
     }
   
     setPointer(index) {
       this.pointer = index
       this.draw();
+    }
+
+    addElement(index, lapData, color) {
+      this.elements.set(index, lapData)
+      this.colors.set(index, color)
+      console.log("adding " + index)
+      this.setupMinXY()
+    }
+
+    removeElement(index) {
+      this.elements.delete(index)
+      this.colors.delete(index)
+      console.log("dropping " + index)
+      this.setupMinXY()
     }
   }

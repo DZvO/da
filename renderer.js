@@ -9,7 +9,8 @@
 const GpsChart = require("./js/GpsChart")
 const PlotView = require("./js/PlotChart")
 const ComparisonChart = require("./js/ComparisonChart")
-var fs = require('graceful-fs')
+var fs = require('graceful-fs');
+const LapList = require("./js/LapList");
 
 
 function getDistanceFromLatLonInKm(a, b) {
@@ -205,10 +206,66 @@ for (let i = 1; i < coords.length / 2; i++) {
 }
 
 const finishline = {
-  start: {lat: 52.0269031, lon: 11.2802439},
-  end: {lat: 52.0273181, lon: 11.2804565}
+  //start: {lat: 52.0269031, lon: 11.2802439},
+  start: {lat: 51.532792, lon: 6.957120},
+  //end: {lat: 52.0273181, lon: 11.2804565}
+  end: {lat: 51.532538, lon: 6.957288}
 }
-const gpsChart = new GpsChart("gpsChart", coords, finishline)
+
+const laps = []
+const lapFiles = fs.readdirSync("dl/laps")
+  .filter(element => element.endsWith(".json"))
+lapFiles.forEach(element => {
+    const content = fs.readFileSync("dl/laps/" + element, {encoding: "utf-8"})
+    const data = JSON.parse(content)
+    laps.push(data)
+    console.log(data.laptime)
+})
+
+
+/*let t = fs
+    .readFileSync("dl/inprogress/accumulation.sorted.log", {encoding: "utf-8"})
+    .split("\n")
+    .sort()
+    .filter(e => e != "")
+    .map(e => {
+      let elements = e.split(",")
+      let date = elements[0] //221203_155034300
+      let sats = elements[1] // 1
+      let speed = elements[2] // 2.96
+      let lat = elements[3] // 51.5344429016
+      let lon = elements[4] // 6.9596800804
+      return {
+        ts: new Date(
+          "20" + date.substring(0, 2),
+          date.substring(2, 4) - 1,
+          date.substring(4, 6),
+          date.substring(7, 9),
+          date.substring(9, 11),
+          date.substring(11, 13),
+          date.substring(13, 15)
+        ),
+        sattelites: parseInt(sats),
+        speed: parseFloat(speed),
+        lat: parseFloat(lat),
+        lon: parseFloat(lon)
+      }
+  })
+  .filter(e => e.ts >= new Date("2022-12-10"))*/
+const gpsChart = new GpsChart("gpsChart", finishline)
+
+const lapList = new LapList(
+  "lapList",
+  laps,
+  (index, color) => {
+    gpsChart.addElement(index, laps[index], color)
+    gpsChart.draw()
+  },
+  (index) => {
+    gpsChart.removeElement(index)
+    gpsChart.draw()
+  }
+)
 
 const plot1 = new PlotView(
   "plot1",
@@ -224,7 +281,7 @@ const plot1 = new PlotView(
     plot2.setZoom(i)
   }
 )
-const plot2 = new PlotView(
+/*const plot2 = new PlotView(
   "plot2",
   dataset,
   (i) => {
@@ -237,7 +294,7 @@ const plot2 = new PlotView(
   (i) => {
     plot1.setZoom(i)
   }
-)
+)*/
 
 const datasets = [dataset, dataset2]
 
@@ -255,68 +312,31 @@ const plot3 = new ComparisonChart(
 )
 
 
-const laptimes = [
-  {lapn: 0, laptime: "1:23.456", timeofday: "13:37:42", user: "alex"},
-  {lapn: 1, laptime: "2:23.456", timeofday: "14:37:42", user: "alex"},
-  {lapn: 2, laptime: "3:23.456", timeofday: "15:37:42", user: "alex"},
-  {lapn: 3, laptime: "4:23.456", timeofday: "16:37:42", user: "alex"},
-  {lapn: 4, laptime: "5:23.456", timeofday: "17:37:42", user: "alex"},
-]
-
-for(let i = 0; i < laptimes.length; i++) {
-  const tr = document.createElement("tr")
-
-  const lapn = document.createElement("td")
-  lapn.textContent = laptimes[i].lapn
-
-  const laptime = document.createElement("td")
-  laptime.textContent = laptimes[i].laptime
-
-  const timeofday = document.createElement("td")
-  timeofday.textContent = laptimes[i].timeofday
-
-  const user = document.createElement("td")
-  user.textContent = laptimes[i].user
-
-  tr.appendChild(lapn)
-  tr.appendChild(laptime)
-  tr.appendChild(timeofday)
-  tr.append(user)
-
-  tr.setAttribute("id", "l" + i)
-  tr.onclick = function () {
-    if(tr.classList.contains("selected")) {
-      tr.classList.remove("selected")
-      console.log("unselected")
-    } else {
-      tr.classList.add("selected")
-      console.log("selected")
-    }
-  }
-  document.getElementById("lttable").appendChild(tr)
-}
-
 document.querySelector('#buttonload').addEventListener('click', () => {
   downloadFiles()
 })
 
-document.querySelector('#buttonparse').addEventListener('click', () => {
-  parseFiles()
-})
-
-function downloadFiles() {
-  if(!fs.existsSync("dl"))
-    fs.mkdirSync("dl")
-  
-  fetch("http://esp32.local/list")
+async function getListOfFiles() {
+  let elements = []
+  await fetch("http://esp32.local/list")
   .then(response => response.text())
   .then(async data => {
-    const elements = data.split(",")
-    elements.pop();
+      elements = data.split(",").filter(element => element.endsWith(".log"))
+    }
+  )
+  return elements
+}
 
-    console.log("fetching " + elements)
-    for (let i = 0; i < elements.length; i++) {
-      if(elements[i].endsWith("log")) {
+async function downloadFiles() {
+  try {
+    if(!fs.existsSync("dl"))
+      fs.mkdirSync("dl")
+    
+    let filesList = getListOfFiles()
+    while((await filesList).length > 1) {
+      const elements = (await filesList)
+      console.log("fetching " + elements)
+      for (let i = 0; i < elements.length; i++) {
         await fetch("http://esp32.local/get?filename=" + elements[i])
         .then(response => response.text())
         .catch((error) => {
@@ -326,18 +346,22 @@ function downloadFiles() {
           document.querySelector('#loadprogress')
             .setAttribute("value", (i / (elements.length-1)) * 100)
           console.log("downloaded " + elements[i])
-          fs.rmSync("dl/" + elements[i])
+          if(fs.existsSync("dl/" + elements[i])) {
+            fs.rmSync("dl/" + elements[i])
+          }
           fs.writeFileSync("dl/" + elements[i], data)
           console.log("wrote " + elements[i])
+          fetch("http://esp32.local/delete?filename=" + elements[i])
+          .then(s => console.log("deleted " + elements[i]), e => console.log(e))
         }).catch((error) => {
           console.error(error);
         })
-      } else {
-        console.log("skipped " + elements[i])
       }
+      filesList = getListOfFiles()
     }
+  } finally {
     parseFiles()
-  })
+  }
 }
 
 
@@ -355,14 +379,11 @@ function parseFiles() {
 }
 
 function concatenateFiles() {
-  const dlContent = fs.readdirSync("dl")
-  console.log(dlContent)
-  const logFiles = dlContent
+  console.log("concat")
+  const logFiles = fs.readdirSync("dl")
     .filter(element => element.endsWith(".log"))
-  console.log(logFiles)
   logFiles.forEach(element => {
     const content = fs.readFileSync("dl/" + element, {encoding: "utf-8"})
-    console.log(content)
     fs.appendFileSync("dl/inprogress/accumulation.log", content, "utf-8")
     fs.copyFileSync("dl/" + element, "dl/processed/" + element)
     fs.rmSync("dl/" + element)
@@ -370,21 +391,25 @@ function concatenateFiles() {
 }
 
 function sortAccumulationFile() {
-  let acc = fs.readFileSync("dl/inprogress/accumulation.log", {encoding: "utf-8"})
-  let elements = acc.split("\n").sort().filter(e => e != "")
-  try {
-    fs.rmSync("dl/inprogress/accumulation.sorted.log")
-  } catch {}
-  for(let i = 0; i < elements.length; i++) {
-    fs.appendFileSync("dl/inprogress/accumulation.sorted.log", elements[i] + "\n", "utf-8")
+  console.log("sort accum")
+  if(fs.existsSync("dl/inprogress/accumulation.log")) {
+    let acc = fs.readFileSync("dl/inprogress/accumulation.log", {encoding: "utf-8"})
+    let elements = acc.split("\n").sort().filter(e => e != "")
+    try {
+      fs.rmSync("dl/inprogress/accumulation.sorted.log")
+    } catch {}
+    for(let i = 0; i < elements.length; i++) {
+      fs.appendFileSync("dl/inprogress/accumulation.sorted.log", elements[i] + "\n", "utf-8")
+    }
+    fs.rmSync("dl/inprogress/accumulation.log")
   }
 }
 
 function extractLaps() {
+  console.log("extract laps")
   let t = fs
     .readFileSync("dl/inprogress/accumulation.sorted.log", {encoding: "utf-8"})
     .split("\n")
-    .sort()
     .filter(e => e != "")
     .map(e => {
       let elements = e.split(",")
@@ -410,22 +435,27 @@ function extractLaps() {
       }
   })
   // TODO process which track we're dealing with
-  console.log(t)
   let lastIndex = 0;
+  let crossingAIndex = null
+  let crossingBIndex = null
   for(let i = 0; i < t.length - 1; i++) {
-      let crossingA = crossesStartFinishLine(t[i], t[i+1])
-      if(crossingA != false) {
-        let crossingAIndex = i
-        while(i < t.length - 1) {
-          i++
-          let crossingB = crossesStartFinishLine(t[i], t[i + 1])
-          if(crossingB != false) {
-            let crossingBIndex = i + 1
-            exportLapFile(t.slice(crossingAIndex, crossingBIndex + 1))
-            lastIndex = i
-            break
-          }
+      document.querySelector('#loadprogress')
+        .setAttribute("value", (i / (t.length-1)) * 100)
+      let k = crossesStartFinishLine(t[i], t[i+1])
+      if(k != false) {
+        if(crossingAIndex == null) {
+          crossingAIndex = i
+        } else {
+          crossingBIndex = i
         }
+      }
+
+      if(crossingAIndex != null && crossingBIndex != null) {
+        exportLapFile(t.slice(crossingAIndex, crossingBIndex + 1 + 1))
+        lastIndex = i
+        crossingAIndex = null
+        crossingBIndex = null
+        i -= 1
       }
   }
 
@@ -439,21 +469,22 @@ function extractLaps() {
     fs.rmSync("dl/inprogress/accumulation.sorted.log")
   } catch {}
   for(let i = 0; i < writeBack.length; i++) {
-    fs.appendFileSync("dl/inprogress/accumulation.sorted.log", elements[i] + "\n", "utf-8")
+    fs.appendFileSync("dl/inprogress/accumulation.sorted.log", writeBack[i] + "\n", "utf-8")
   }
 }
 
 function exportLapFile(sliceToExport) {
+  console.log("exporting lap!")
   let filename = sliceToExport[0].timestamp.getTime()
   let exportMap = {samples: sliceToExport}
   let contentInJSON = JSON.stringify(exportMap)
-  fs.write("dl/laps/" + filename + ".json", contentInJSON)
+  fs.writeFileSync("dl/laps/" + filename + ".json", contentInJSON)
   processLapFile("dl/laps/" + filename + ".json")
 }
 
 function processLapFile(path) {
   let j = JSON.parse(fs.readFileSync(path, {encoding: "utf-8"}))
-  if(j.has("info")) return
+  //if(j.has("info")) return
   
   let samples = j.samples
   let startTime = null
@@ -461,7 +492,7 @@ function processLapFile(path) {
   for(let i = 0; i < samples.length - 1 - 1; i++) {
     let k = crossesStartFinishLine(samples[i], samples[i + 1])
     if(k != false) {
-      startTime = samples[i].timestamp
+      startTime = new Date(samples[i].timestamp)
       // TODO use middle of tow samples as first approx
       // TODO fancy calc using current speed (samples[i].speed) and distance from intersection point to point at i
       break
@@ -470,15 +501,14 @@ function processLapFile(path) {
   for(let i = samples.length - 1; i > 1; i--) {
     let k = crossesStartFinishLine(samples[i], samples[i - 1])
     if(k != false) {
-      endTime = samples[i].timestamp
+      endTime = new Date(samples[i].timestamp)
       // TODO use middle of two samples as first approx
       // TODO fancy calc using current speed (samples[i].speed) and distance from intersection point to point at i
       break
     }
   }
   // TODO add sector times
-
-  j["info"] = {laptime: (endTime - startTime)}
+  j.laptime = endTime - startTime
   fs.writeFileSync(path, JSON.stringify(j)) // TODO check if this appends or rewrites file
 }
 

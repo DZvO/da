@@ -34,7 +34,6 @@ module.exports = class ComparisonChart {
     this.offsets = Array(this.datasets.length).fill(0)
     this.flagDraggingOffsets = Array(this.datasets.length).fill(false)
 
-
     // listen for mouse events
     this.canvas.addEventListener("mousedown", this.mouseDown)
     this.canvas.addEventListener("mouseup", this.mouseUp)
@@ -336,13 +335,17 @@ module.exports = class ComparisonChart {
   }
 
   resizeCanvas = e => {
-    if (e != null) this.consumeMouseEvent(e)
     var rect = this.canvas.parentNode.getBoundingClientRect();
     var width = rect.width;
     var height = rect.height;
 
     this.canvas.width = width;
     this.canvas.height = height;
+
+    this.BB = this.canvas.getBoundingClientRect()
+    this.offsetX = this.BB.left
+    this.offsetY = this.BB.top
+
     this.draw();
   }
 

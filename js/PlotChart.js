@@ -286,13 +286,17 @@ module.exports = class PlotView {
   }
 
   resizeCanvas = e => {
-    if (e != null) this.consumeMouseEvent(e)
     var rect = this.canvas.parentNode.getBoundingClientRect();
     var width = rect.width;
     var height = rect.height;
 
     this.canvas.width = width;
     this.canvas.height = height;
+
+    this.BB = this.canvas.getBoundingClientRect()
+    this.offsetX = this.BB.left
+    this.offsetY = this.BB.top
+
     this.draw();
   }
 

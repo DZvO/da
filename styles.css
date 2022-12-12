@@ -99,7 +99,7 @@ tfoot {
 }
 
 .selected {
-    background-color: rgb(255, 148, 8);
+    /*background-color: rgb(255, 148, 8);*/
 }
 
 tbody>tr:hover.selected {
