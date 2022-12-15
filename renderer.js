@@ -260,14 +260,18 @@ const lapList = new LapList(
   (index, color) => {
     gpsChart.addElement(index, laps[index], color)
     gpsChart.draw()
+    plot.addElement(index, laps[index], color)
+    plot.draw()
   },
   (index) => {
     gpsChart.removeElement(index)
     gpsChart.draw()
+    plot.removeElement(index)
+    plot.draw()
   }
 )
 
-const plot1 = new PlotView(
+/*const plot1 = new PlotView(
   "plot1",
   dataset,
   (i) => {
@@ -281,7 +285,7 @@ const plot1 = new PlotView(
     plot2.setZoom(i)
   }
 )
-/*const plot2 = new PlotView(
+const plot2 = new PlotView(
   "plot2",
   dataset,
   (i) => {
@@ -298,9 +302,8 @@ const plot1 = new PlotView(
 
 const datasets = [dataset, dataset2]
 
-const plot3 = new ComparisonChart(
-  "plot3",
-  datasets,
+const plot = new ComparisonChart(
+  "plot",
   (i) => {
     //gpsChart.setPointer(i)
     //plot1.setPointer(i)

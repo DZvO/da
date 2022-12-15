@@ -1,5 +1,5 @@
 module.exports = class ComparisonChart {
-  constructor(elementName, datasets, pointerCallback, scrollCallback, zoomCallback) {
+  constructor(elementName, pointerCallback, scrollCallback, zoomCallback) {
     this.canvasName = elementName
     this.canvas = document.getElementById(this.canvasName)
     this.ctx = this.canvas.getContext("2d")
@@ -12,6 +12,7 @@ module.exports = class ComparisonChart {
 
     // drag related variables
     this.flagDraggingXScroll = false
+    this.flagDraggingYScroll = false
     this.startX
     this.startY
     this.cursorX = -1
@@ -21,36 +22,51 @@ module.exports = class ComparisonChart {
 
     this.xScroll = 0
     this.xZoom = 0.1
+
+    this.yScroll = 0
+    this.yZoom = 1
+
     this.xPointer = 0
-    this.datasets = datasets
+    this.elements = new Map()
+    this.colors = new Map()
 
-    this.colors = [
-      '#e6194B',
-      '#3cb44b',
-      '#ffe119',
-      '#4363d8',
-    ]
-
-    this.offsets = Array(this.datasets.length).fill(0)
-    this.flagDraggingOffsets = Array(this.datasets.length).fill(false)
+    this.offsets = new Map()
+    this.flagDraggingOffsets = new Map()
 
     // listen for mouse events
     this.canvas.addEventListener("mousedown", this.mouseDown)
     this.canvas.addEventListener("mouseup", this.mouseUp)
     this.canvas.addEventListener("mousemove", this.mouseMove)
-    this.canvas.addEventListener("mousewheel", this.mouseWheel)
+    this.canvas.addEventListener("wheel", this.mouseWheel)
     this.canvas.addEventListener("auxclick", this.mouseWheel)
 
-    this.YDIV = 50
+    this.YDIV = 25
     this.XDIV = 75
     this.xLineHeight = 15
-    this.xAxisHeight = this.xLineHeight * (this.datasets.length)
+    this.xAxisHeight = this.xLineHeight * (this.elements.size)
     this.yAxisWidth = 40
 
     window.addEventListener('resize', this.resizeCanvas, false)
     this.resizeCanvas()
     this.draw()
   }
+
+  addElement(index, data, color) {
+    this.elements.set(index, data)
+    this.colors.set(index, color)
+    this.offsets.set(index, 0)
+    this.flagDraggingOffsets.set(index, false)
+    this.xAxisHeight = this.xLineHeight * (this.elements.size)
+  }
+
+  removeElement(index) {
+    this.elements.delete(index)
+    this.colors.delete(index)
+    this.offsets.delete(index)
+    this.flagDraggingOffsets.delete(index)
+    this.xAxisHeight = this.xLineHeight * (this.elements.size)
+  }
+
 
   resetTransform() {
     this.currentX = 0
@@ -73,31 +89,32 @@ module.exports = class ComparisonChart {
     this.ctx.textBaseline = 'middle'
     this.ctx.textAlign = "center";
 
-    for(let ds = 0; ds < this.datasets.length; ds++) {
-      for (let i = this.datasets[ds][0].ts; i < this.datasets[ds][this.datasets[ds].length - 1].ts; i += 100 / this.xZoom) {
-        this.ctx.fillStyle = this.colors[ds]
-        this.ctx.fillText(
-          this.getFormattedDate(i),
-          this.yAxisWidth + (i - this.datasets[ds][0].ts) * this.xZoom - this.xScroll - this.offsets[ds],
-          this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * ds + 2
-        )
+    let k = 0
+    this.elements.forEach((val, idx) => {
+      let offsetTs = new Date(val.samples[0].timestamp).getTime()
+      for (
+        let i = offsetTs; 
+        i < new Date(val.samples[val.samples.length - 1].timestamp).getTime(); 
+        i += 100 / this.xZoom) {
+          let x = this.yAxisWidth + (i - offsetTs) * this.xZoom - this.xScroll - this.offsets.get(idx)
+          if(x < 0 || x > this.canvas.width) {
+            continue
+          }
+          this.ctx.fillStyle = this.colors.get(idx)
+          this.ctx.fillText(
+            this.getFormattedDate(i),
+            x,
+            this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * k + 2
+          )
       }
-    }
+      k++
+    })
     this.ctx.restore()
   }
 
   getFormattedDate(ts) {
     var d = new Date(ts)
     return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0') + ":" + String(d.getSeconds()).padStart(2, '0');
-  }
-
-  getXvalue(index) {
-    try {
-      if (index >= this.datasets.length) return "-1"
-      else return this.datasets[index].ts
-    } catch (error) {
-      return "-1"
-    }
   }
 
   lerp(v0, v1, t) {
@@ -121,18 +138,16 @@ module.exports = class ComparisonChart {
     this.ctx.beginPath();
     this.ctx.lineWidth = 1
     this.ctx.strokeStyle = 'lightgray'
-    for (let i = this.canvas.height; i > -this.YDIV; i -= this.YDIV) {
-      this.ctx.moveTo(this.yAxisWidth, i - this.xAxisHeight);
-      this.ctx.lineTo(this.canvas.width, i - this.xAxisHeight);
-    }
-    for (let i = this.canvas.height; i > -this.YDIV; i -= this.YDIV) {
+    //for (let i = this.canvas.height; i > -this.YDIV; i -= this.YDIV) {
+    //  this.ctx.moveTo(this.yAxisWidth, i - this.xAxisHeight);
+    //  this.ctx.lineTo(this.canvas.width, i - this.xAxisHeight);
+    //}
+    for (let i = 0; i < this.canvas.height; i += this.YDIV) {
       this.ctx.fillText(
-        this.canvas.height - i,
+        i,
         this.yAxisWidth / 2,
-        i - this.xAxisHeight
+        this.canvas.height - this.xAxisHeight + this.yScroll - (i * this.yZoom)
       );
-      //this.ctx.moveTo(this.yAxisWidth, i - this.xAxisHeight);
-      //this.ctx.lineTo(this.canvas.width, i - this.xAxisHeight);
     }
     this.ctx.stroke();
     this.ctx.textAlign = "left";
@@ -140,25 +155,30 @@ module.exports = class ComparisonChart {
   }
 
   drawDataPath() {
-    for(let ds = 0; ds < this.datasets.length; ds++) {
+    this.elements.forEach((val, idx) => {
       this.ctx.beginPath();
       this.ctx.lineWidth = 1
-      this.ctx.strokeStyle = this.colors[ds]
+      this.ctx.strokeStyle = this.colors.get(idx)
       this.ctx.lineCap = 'round'
 
-      var timeOffset = this.datasets[ds][0].ts
-      for (let i = 0; i < this.datasets[ds].length - 2; i++) {
-        this.ctx.moveTo(
-          this.yAxisWidth - this.xScroll - this.offsets[ds] + (this.datasets[ds][i].ts - timeOffset) * this.xZoom,
-          this.canvas.height - this.datasets[ds][i].value - this.xAxisHeight
-        );
+      var timeOffset = new Date(val.samples[0].timestamp).getTime()
+      for (let i = 0; i < val.samples.length; i++) {
+        let x = 
+          this.yAxisWidth - this.xScroll - this.offsets.get(idx) + 
+          (new Date(val.samples[i].timestamp).getTime() - timeOffset) * this.xZoom
+        if(x < 0) {
+          continue
+        } else if (x > this.canvas.width) {
+          break
+        }
         this.ctx.lineTo(
-          this.yAxisWidth - this.xScroll - this.offsets[ds] + (this.datasets[ds][i + 1].ts - timeOffset) * this.xZoom,
-          (this.canvas.height - this.datasets[ds][i + 1].value - this.xAxisHeight)
-        );
+          x,
+          this.canvas.height - this.xAxisHeight + this.yScroll - val.samples[i].speed * this.yZoom
+        )
       }
       this.ctx.stroke();
-    }
+    })
+    
   }
 
   drawHUD() {
@@ -238,7 +258,7 @@ module.exports = class ComparisonChart {
     this.drawDataPath();
     this.drawYAxis();
     this.drawXAxis();
-    this.drawHUD();
+    //this.drawHUD();
   }
 
   consumeMouseEvent(e) {
@@ -248,17 +268,19 @@ module.exports = class ComparisonChart {
   }
 
   mouseDown = e => {
-    this.consumeMouseEvent(e);
+    this.consumeMouseEvent(e)
 
-    var mx = parseInt(e.clientX - this.offsetX);
-    var my = parseInt(e.clientY - this.offsetY);
+    var mx = parseInt(e.clientX - this.offsetX)
+    var my = parseInt(e.clientY - this.offsetY)
 
-    this.startX = mx;
-    this.startY = my;
+    this.startX = mx
+    this.startY = my
 
     if (my >= (this.canvas.height - this.xAxisHeight)) {
-      const s = parseInt((this.canvas.height - my) / (this.xAxisHeight / this.datasets.length))
-      this.flagDraggingOffsets[s] = true
+      const s = parseInt((this.canvas.height - my) / (this.xAxisHeight / this.elements.size))
+      this.flagDraggingOffsets.set(Array.from(this.flagDraggingOffsets.keys())[s], true)
+    } else if(mx < this.yAxisWidth) {
+      this.flagDraggingYScroll = true;
     } else {
       this.flagDraggingXScroll = true;
     }
@@ -267,7 +289,11 @@ module.exports = class ComparisonChart {
   mouseUp = e => {
     this.consumeMouseEvent(e);
     this.flagDraggingXScroll = false;
-    this.flagDraggingOffsets.fill(false)
+    this.flagDraggingYScroll = false;
+
+    [...this.flagDraggingOffsets.keys()].forEach((key) => {
+      this.flagDraggingOffsets.set(key, false);
+    });
   }
 
   mouseMove = e => {
@@ -277,19 +303,21 @@ module.exports = class ComparisonChart {
     this.cursorX = mx;
     var my = parseInt(e.clientY - this.offsetY);
     this.cursorY = this.canvas.height - my;
-    if (this.flagDraggingXScroll || this.flagDraggingOffsets.some((x) => x === true)) {
+    if (this.flagDraggingXScroll || this.flagDraggingYScroll || [...this.flagDraggingOffsets.values()].some((x) => x === true)) {
       // calculate the distance the mouse has moved
       // since the last mousemove
       var dx = mx - this.startX;
       var dy = my - this.startY;
 
-      if (this.flagDraggingOffsets.some((x) => x === true)) {
-        this.offsets[this.flagDraggingOffsets.findIndex((x) => x === true)] -= dx
-      }
-      else if (this.flagDraggingXScroll) {
+      if ([...this.flagDraggingOffsets.values()].some((x) => x === true)) {
+        let offsetKey = [...this.flagDraggingOffsets.keys()].find((x) => this.flagDraggingOffsets.get(x) == true)
+        this.offsets.set(offsetKey, this.offsets.get(offsetKey) - dx)
+      } else if(this.flagDraggingYScroll) {
+        this.yScroll = Math.max(this.yScroll + dy, 0);
+      } else if (this.flagDraggingXScroll) {
         if (this.xScroll - dx > 0) {
           this.xScroll = Math.max(this.xScroll - dx, 0);
-          this.scrollCallback(this.xScroll)
+          this.scrollCallback(this.xScroll);
         }
 
         this.currentX = Math.max(this.currentX - dx, 0);
@@ -301,8 +329,8 @@ module.exports = class ComparisonChart {
       this.startY = my;
     }
 
-    this.xPointer = parseInt((this.cursorX - this.yAxisWidth + this.xScroll) * (1 / this.xZoom) / 100)
-    this.pointerCallback(this.xPointer)
+    this.xPointer = parseInt((this.cursorX - this.yAxisWidth + this.xScroll) * (1 / this.xZoom) / 100);
+    this.pointerCallback(this.xPointer);
 
     // redraw the scene with the new rect positions
     this.draw();
@@ -318,9 +346,18 @@ module.exports = class ComparisonChart {
   }
 
   mouseWheel = e => {
-    var scroll = e.wheelDelta / 1024;
+    var scroll = e.deltaY / 1024;
     this.currentZoom += scroll;
+
+    var mx = parseInt(e.clientX - this.offsetX);
+    var my = parseInt(e.clientY - this.offsetY);
     
+    if(mx < this.yAxisWidth) {
+      this.yZoom += scroll
+    } else if (my >= (this.canvas.height - this.xAxisHeight)) {
+      this.xZoom = Math.max(this.xZoom + scroll, 0)
+      console.log(this.xZoom)
+    } 
     /*
     this.xScale += dx / 1000;
     this.xScale = Math.min(this.xScale, 1)
