@@ -21,6 +21,7 @@ module.exports = class GpsChart {
   
       this.currentX = 0, this.currentY = 0, this.currentZoom = 1;
       this.pointer = 0;
+      this.pointers = new Map()
 
       this.image = document.getElementById("trackOsl");
 
@@ -119,17 +120,17 @@ module.exports = class GpsChart {
       );
       this.ctx.stroke();
   
-      /*const centerX = (this.coords[this.pointer].lon - mapCenterX) * scale + this.canvas.width / 2;
-      const centerY = this.canvas.height - ((this.coords[this.pointer].lat - mapCenterY) * scale + this.canvas.height / 2);
-      const radius = 1;
-  
-      this.ctx.beginPath();
-      this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
-      this.ctx.fillStyle = 'green';
-      this.ctx.fill();
-      this.ctx.lineWidth = 5;
-      this.ctx.strokeStyle = '#003300';
-      this.ctx.stroke();*/
+      this.pointers.forEach((val, idx) => {
+        const centerX = (this.elements.get(idx).samples[val].lon - mapCenterX) * scale + this.canvas.width / 2;
+        const centerY = this.canvas.height - ((this.elements.get(idx).samples[val].lat - mapCenterY) * scale + this.canvas.height / 2);
+        const radius = 4;
+    
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+        this.ctx.fillStyle = this.colors.get(idx);
+        this.ctx.fill();
+        this.ctx.stroke();
+      })
     }
   
   
@@ -201,8 +202,9 @@ module.exports = class GpsChart {
       this.draw();
     }
   
-    setPointer(index) {
-      this.pointer = index
+    setPointer(idx, p) {
+      console.log("fkdkdkd")
+      this.pointers.set(idx, p);
       this.draw();
     }
 

@@ -304,9 +304,10 @@ const datasets = [dataset, dataset2]
 
 const plot = new ComparisonChart(
   "plot",
-  (i) => {
+  (idx, p) => {
     //gpsChart.setPointer(i)
     //plot1.setPointer(i)
+    gpsChart.setPointer(idx, p)
   },
   (i) => {
   },
@@ -417,6 +418,7 @@ function extractLaps() {
     .map(e => {
       let elements = e.split(",")
       let date = elements[0] //221203_155034300
+                             //0123456789012345
       let sats = elements[1] // 1
       let speed = elements[2] // 2.96
       let lat = elements[3] // 51.5344429016
@@ -429,7 +431,7 @@ function extractLaps() {
           date.substring(7, 9),
           date.substring(9, 11),
           date.substring(11, 13),
-          date.substring(13, 15)
+          date.substring(13, 16)
         ),
         sattelites: parseInt(sats),
         speed: parseFloat(speed),

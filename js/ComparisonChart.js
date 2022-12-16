@@ -39,6 +39,7 @@ module.exports = class ComparisonChart {
     this.canvas.addEventListener("mousemove", this.mouseMove)
     this.canvas.addEventListener("wheel", this.mouseWheel)
     this.canvas.addEventListener("auxclick", this.mouseWheel)
+    window.addEventListener("keydown", this.keydown)
 
     this.YDIV = 25
     this.XDIV = 75
@@ -48,6 +49,21 @@ module.exports = class ComparisonChart {
 
     window.addEventListener('resize', this.resizeCanvas, false)
     this.resizeCanvas()
+    this.draw()
+  }
+
+  keydown = event => {
+    console.log(event.key)
+    console.log(event.keyName)
+    switch (event.key) {
+      case "r":
+        [...this.offsets.keys()].forEach((key) => {
+          this.offsets.set(key, 0);
+        });
+        break;
+      default:
+        return; // Quit when this doesn't handle the key event.
+    }
     this.draw()
   }
 
@@ -75,7 +91,6 @@ module.exports = class ComparisonChart {
     this.draw()
   }
 
-  // clear the canvas
   clear() {
     this.ctx.save()
     this.ctx.resetTransform()
@@ -203,22 +218,44 @@ module.exports = class ComparisonChart {
       this.ctx.font = "15px sans-serif";
       this.ctx.textBaseline = 'middle'
       this.ctx.textAlign = "center";
-      for(let ds = 0; ds < this.datasets.length; ds++) {
+      let n = 0;
+      this.elements.forEach((val, idx) => {
         try {
-          const idx = (this.cursorX + this.offsets[ds] + this.xScroll - this.yAxisWidth) * this.xZoom
-          const l = this.lerp(this.datasets[ds][parseInt(idx)].ts, this.datasets[ds][parseInt(idx) + 1].ts, idx % 1)
+          const p = 
+            (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
+
+          const l = this.lerp(
+            new Date(val.samples[parseInt(p)].timestamp).getTime(),
+            new Date(val.samples[parseInt(p) + 1].timestamp).getTime(),
+            p % 1
+          );
+          const text = this.getFormattedDate(l);
+          const textWidth = this.ctx.measureText(text).width;
           
-          this.ctx.fillStyle = this.colors[ds]
+          this.ctx.fillStyle = "#000000";
+          this.ctx.fillRect(
+            this.cursorX - textWidth / 2 - 1,
+            this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * n + 2 - 15/2 - 2,
+            textWidth + 2,
+            15 + 2
+          );
+          this.ctx.fillStyle = "#EEEEEE";
+          this.ctx.fillRect(
+            this.cursorX - textWidth / 2,
+            this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * n + 2 - 15/2,
+            textWidth,
+            15
+          );
+          this.ctx.fillStyle = this.colors.get(idx);
           this.ctx.fillText(
-            this.getFormattedDate(l),
+            text,
             this.cursorX,
-            this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * ds + 2
-          )
-        } catch (error) {
-          
-        }
-      }
-      this.ctx.restore()
+            this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * n + 2
+          );
+          n++;
+        } catch (error) {}
+      });
+      this.ctx.restore();
 
       // horizontal
       /*
@@ -256,9 +293,9 @@ module.exports = class ComparisonChart {
   draw() {
     this.clear();
     this.drawDataPath();
-    this.drawYAxis();
     this.drawXAxis();
-    //this.drawHUD();
+    this.drawYAxis();
+    this.drawHUD();
   }
 
   consumeMouseEvent(e) {
@@ -329,8 +366,11 @@ module.exports = class ComparisonChart {
       this.startY = my;
     }
 
-    this.xPointer = parseInt((this.cursorX - this.yAxisWidth + this.xScroll) * (1 / this.xZoom) / 100);
-    this.pointerCallback(this.xPointer);
+    this.elements.forEach((val, idx) => {
+      const p = 
+        (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
+      this.pointerCallback(idx, parseInt(p))
+    })
 
     // redraw the scene with the new rect positions
     this.draw();
