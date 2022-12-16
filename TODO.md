@@ -15,3 +15,4 @@
 - hide/show progress bar at bottom for example when downloading/processing files
 - enable adding/removing from lap list (for charts as well as GPS)
 - check if samples are equidistant (required for mapping from screen coordinates to timestamp)
+- cleanup non used variables / refactor

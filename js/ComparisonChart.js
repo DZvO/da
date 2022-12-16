@@ -53,8 +53,6 @@ module.exports = class ComparisonChart {
   }
 
   keydown = event => {
-    console.log(event.key)
-    console.log(event.keyName)
     switch (event.key) {
       case "r":
         [...this.offsets.keys()].forEach((key) => {
@@ -270,23 +268,37 @@ module.exports = class ComparisonChart {
         valueAtCursor
       );
       */
-      this.ctx.stroke()
+      this.ctx.stroke();
       
 
       // draw popup on y axis
-      /*this.ctx.clearRect(
-        0,
-        this.canvas.height - this.dataset[parseInt((this.cursorX + this.xScroll - this.yAxisWidth) / this.xScaleUp)].value - this.xAxisHeight - 10,
-        this.yAxisWidth,
-        20
-      );
-      this.ctx.textBaseline = 'middle'
-      this.ctx.fillText(
-        this.dataset[parseInt((this.cursorX + this.xScroll - this.yAxisWidth) / this.xScaleUp)].value.toFixed(1),
-        2,
-        this.canvas.height - this.dataset[parseInt((this.cursorX + this.xScroll - this.yAxisWidth) / this.xScaleUp)].value - this.xAxisHeight,
-      );
-      this.ctx.textBaseline = 'alphabetic'*/
+      n = 0;
+      this.elements.forEach((val, idx) => {
+        this.ctx.textBaseline = "top"
+        this.ctx.font = "15px sans-serif";
+        this.ctx.textAlign = "center";
+        const p = 
+            (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
+        const v = val.samples[parseInt(p)].speed
+
+        this.ctx.fillStyle = "white"
+        this.ctx.clearRect(
+          0,
+          //this.canvas.height - this.cursorY - 20/2,
+          this.canvas.height - this.xAxisHeight - v * this.yZoom,
+          this.yAxisWidth,
+          15
+        );
+        this.ctx.fillStyle = this.colors.get(idx);
+        this.ctx.fillText(
+          v.toFixed(1),
+          2,
+          //this.canvas.height - this.cursorY - 20/2,
+          this.canvas.height - this.xAxisHeight - v * this.yZoom,
+        );
+        this.ctx.textBaseline = 'alphabetic';
+        n++
+      })
     }
   }
 
@@ -396,7 +408,6 @@ module.exports = class ComparisonChart {
       this.yZoom += scroll
     } else if (my >= (this.canvas.height - this.xAxisHeight)) {
       this.xZoom = Math.max(this.xZoom + scroll, 0)
-      console.log(this.xZoom)
     } 
     /*
     this.xScale += dx / 1000;

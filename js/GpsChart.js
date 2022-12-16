@@ -203,7 +203,6 @@ module.exports = class GpsChart {
     }
   
     setPointer(idx, p) {
-      console.log("fkdkdkd")
       this.pointers.set(idx, p);
       this.draw();
     }
@@ -211,14 +210,12 @@ module.exports = class GpsChart {
     addElement(index, lapData, color) {
       this.elements.set(index, lapData)
       this.colors.set(index, color)
-      console.log("adding " + index)
       this.setupMinXY()
     }
 
     removeElement(index) {
       this.elements.delete(index)
       this.colors.delete(index)
-      console.log("dropping " + index)
       this.setupMinXY()
     }
   }
