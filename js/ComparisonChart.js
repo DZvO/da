@@ -175,7 +175,7 @@ module.exports = class ComparisonChart {
       this.ctx.lineCap = 'round'
 
       var timeOffset = new Date(val.samples[0].timestamp).getTime()
-      for (let i = 0; i < val.samples.length; i++) {
+      for (let i = 0; i < val.samples.length - 1; i++) {
         let x = 
           this.yAxisWidth - this.xScroll - this.offsets.get(idx) + 
           (new Date(val.samples[i].timestamp).getTime() - timeOffset) * this.xZoom
@@ -184,9 +184,16 @@ module.exports = class ComparisonChart {
         } else if (x > this.canvas.width) {
           break
         }
-        this.ctx.lineTo(
+        this.ctx.moveTo(
           x,
           this.canvas.height - this.xAxisHeight + this.yScroll - val.samples[i].speed * this.yZoom
+        )
+        x = 
+          this.yAxisWidth - this.xScroll - this.offsets.get(idx) + 
+          (new Date(val.samples[i + 1].timestamp).getTime() - timeOffset) * this.xZoom
+        this.ctx.lineTo(
+          x,
+          this.canvas.height - this.xAxisHeight + this.yScroll - val.samples[i + 1].speed * this.yZoom
         )
       }
       this.ctx.stroke();
@@ -276,10 +283,13 @@ module.exports = class ComparisonChart {
       this.elements.forEach((val, idx) => {
         this.ctx.textBaseline = "top"
         this.ctx.font = "15px sans-serif";
-        this.ctx.textAlign = "center";
+        this.ctx.textAlign = "left";
         const p = 
             (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
         const v = val.samples[parseInt(p)].speed
+        // TODO lerp between values
+        console.log("P " + p)
+        console.log("v " + v)
 
         this.ctx.fillStyle = "white"
         this.ctx.clearRect(
@@ -287,7 +297,7 @@ module.exports = class ComparisonChart {
           //this.canvas.height - this.cursorY - 20/2,
           this.canvas.height - this.xAxisHeight - v * this.yZoom,
           this.yAxisWidth,
-          15
+          14
         );
         this.ctx.fillStyle = this.colors.get(idx);
         this.ctx.fillText(
