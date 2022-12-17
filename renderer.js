@@ -481,8 +481,27 @@ function extractLaps() {
 function exportLapFile(sliceToExport) {
   console.log("exporting lap!")
   let filename = sliceToExport[0].timestamp.getTime()
-  let exportMap = {samples: sliceToExport}
-  let contentInJSON = JSON.stringify(exportMap)
+  let filledSlice = []
+  let beginTimeStamp = sliceToExport[0].timestamp.getTime()
+  let endTimeStamp = sliceToExport[sliceToExport.length - 1].timestamp.getTime()
+  let n = 0
+  let prev = structuredClone(sliceToExport[0])
+  for(let i = beginTimeStamp; i <= endTimeStamp; i += 100) {
+    // TODO some samples have .X99Z timestamp, these will be overriden by this
+    // -> make this more robust
+    if(sliceToExport[n].timestamp.getTime() > i) {
+      prev.timestamp = new Date(i)
+      filledSlice.push(structuredClone(prev))
+    } else {
+      let k = sliceToExport[n]
+      k.timestamp = new Date(i)
+      filledSlice.push(k)
+      prev = structuredClone(k)
+      n++
+    }
+  }
+  let exportMap = {samples: filledSlice}
+  let contentInJSON = JSON.stringify(exportMap, null, 2)
   fs.writeFileSync("dl/laps/" + filename + ".json", contentInJSON)
   processLapFile("dl/laps/" + filename + ".json")
 }
@@ -513,7 +532,10 @@ function processLapFile(path) {
     }
   }
   // TODO add sector times
+  console.log("start time " + startTime)
+  console.log("end time " + endTime)
   j.laptime = endTime - startTime
+  console.log("exporting lap with time " + j.laptime)
   fs.writeFileSync(path, JSON.stringify(j)) // TODO check if this appends or rewrites file
 }
 

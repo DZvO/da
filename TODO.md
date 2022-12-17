@@ -14,5 +14,7 @@
 - proximity track detection
 - hide/show progress bar at bottom for example when downloading/processing files
 - enable adding/removing from lap list (for charts as well as GPS)
-- check if samples are equidistant (required for mapping from screen coordinates to timestamp)
+- validate if samples are equidistant (required for mapping from screen coordinates to timestamp) and fill if not
 - cleanup non used variables / refactor
+- optimize rendering logic based on assumption that samples are equidistant (use map of timestamp -> sample mapping)
+- refresh lap list after downloading

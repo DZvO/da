@@ -215,6 +215,7 @@ module.exports = class GpsChart {
 
     removeElement(index) {
       this.elements.delete(index)
+      this.pointers.delete(index)
       this.colors.delete(index)
       this.setupMinXY()
     }

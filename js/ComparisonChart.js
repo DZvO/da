@@ -24,7 +24,7 @@ module.exports = class ComparisonChart {
     this.xZoom = 0.1
 
     this.yScroll = 0
-    this.yZoom = 1
+    this.yZoom = 2
 
     this.xPointer = 0
     this.elements = new Map()
@@ -41,7 +41,7 @@ module.exports = class ComparisonChart {
     this.canvas.addEventListener("auxclick", this.mouseWheel)
     window.addEventListener("keydown", this.keydown)
 
-    this.YDIV = 25
+    this.YDIV = 20
     this.XDIV = 75
     this.xLineHeight = 15
     this.xAxisHeight = this.xLineHeight * (this.elements.size)
@@ -66,6 +66,8 @@ module.exports = class ComparisonChart {
   }
 
   addElement(index, data, color) {
+    data.samplesByTimestamp = new Map()
+    data.samples.forEach((s) => data.samplesByTimestamp.set(new Date(s.timestamp).getTime(), s))
     this.elements.set(index, data)
     this.colors.set(index, color)
     this.offsets.set(index, 0)
@@ -115,7 +117,7 @@ module.exports = class ComparisonChart {
           }
           this.ctx.fillStyle = this.colors.get(idx)
           this.ctx.fillText(
-            this.getFormattedDate(i),
+            this.getFormattedDate(i - offsetTs),
             x,
             this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * k + 2
           )
@@ -127,7 +129,7 @@ module.exports = class ComparisonChart {
 
   getFormattedDate(ts) {
     var d = new Date(ts)
-    return d.getHours() + ":" + String(d.getMinutes()).padStart(2, '0') + ":" + String(d.getSeconds()).padStart(2, '0');
+    return String(d.getMinutes()).padStart(2, '0') + ":" + String(d.getSeconds()).padStart(2, '0');
   }
 
   lerp(v0, v1, t) {
@@ -184,17 +186,17 @@ module.exports = class ComparisonChart {
         } else if (x > this.canvas.width) {
           break
         }
-        this.ctx.moveTo(
+        this.ctx.lineTo(
           x,
           this.canvas.height - this.xAxisHeight + this.yScroll - val.samples[i].speed * this.yZoom
         )
-        x = 
+        /*x = 
           this.yAxisWidth - this.xScroll - this.offsets.get(idx) + 
           (new Date(val.samples[i + 1].timestamp).getTime() - timeOffset) * this.xZoom
         this.ctx.lineTo(
           x,
           this.canvas.height - this.xAxisHeight + this.yScroll - val.samples[i + 1].speed * this.yZoom
-        )
+        )*/
       }
       this.ctx.stroke();
     })
@@ -226,18 +228,22 @@ module.exports = class ComparisonChart {
       let n = 0;
       this.elements.forEach((val, idx) => {
         try {
-          const p = 
-            (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
-
+          let offsetTs = new Date(val.samples[0].timestamp).getTime()
+          //let x = 
+          //  this.yAxisWidth - this.xScroll - this.offsets.get(idx) + 
+          //  (new Date(val.samples[i].timestamp).getTime() - timeOffset) * this.xZoom
+          let p =
+            (this.cursorX - this.yAxisWidth + this.offsets.get(idx) + this.xScroll) * (0.01 / this.xZoom);
+          p = Math.min(p, val.samples.length - 1)
           const l = this.lerp(
             new Date(val.samples[parseInt(p)].timestamp).getTime(),
             new Date(val.samples[parseInt(p) + 1].timestamp).getTime(),
             p % 1
           );
-          const text = this.getFormattedDate(l);
+          const text = this.getFormattedDate(l - offsetTs);
           const textWidth = this.ctx.measureText(text).width;
           
-          this.ctx.fillStyle = "#000000";
+          this.ctx.fillStyle = "#FFFFFF";
           this.ctx.fillRect(
             this.cursorX - textWidth / 2 - 1,
             this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * n + 2 - 15/2 - 2,
@@ -258,7 +264,7 @@ module.exports = class ComparisonChart {
             this.canvas.height - (this.xLineHeight / 2) - this.xLineHeight * n + 2
           );
           n++;
-        } catch (error) {}
+        } catch (error) { console.log(error) }
       });
       this.ctx.restore();
 
@@ -282,29 +288,27 @@ module.exports = class ComparisonChart {
       n = 0;
       this.elements.forEach((val, idx) => {
         this.ctx.textBaseline = "top"
-        this.ctx.font = "15px sans-serif";
-        this.ctx.textAlign = "left";
+        this.ctx.font = "16px sans-serif";
+        this.ctx.textAlign = "center";
         const p = 
             (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
         const v = val.samples[parseInt(p)].speed
         // TODO lerp between values
-        console.log("P " + p)
-        console.log("v " + v)
 
         this.ctx.fillStyle = "white"
         this.ctx.clearRect(
           0,
           //this.canvas.height - this.cursorY - 20/2,
-          this.canvas.height - this.xAxisHeight - v * this.yZoom,
+          this.canvas.height - this.xAxisHeight - v * this.yZoom - 1,
           this.yAxisWidth,
-          14
+          18
         );
         this.ctx.fillStyle = this.colors.get(idx);
         this.ctx.fillText(
           v.toFixed(1),
-          2,
+          this.yAxisWidth / 2,
           //this.canvas.height - this.cursorY - 20/2,
-          this.canvas.height - this.xAxisHeight - v * this.yZoom,
+          this.canvas.height - this.xAxisHeight - v * this.yZoom + 1,
         );
         this.ctx.textBaseline = 'alphabetic';
         n++
@@ -390,8 +394,8 @@ module.exports = class ComparisonChart {
 
     this.elements.forEach((val, idx) => {
       const p = 
-        (this.cursorX + this.offsets.get(idx) + this.xScroll - this.yAxisWidth) * (0.01 / this.xZoom);
-      this.pointerCallback(idx, parseInt(p))
+        (this.cursorX - this.yAxisWidth + this.offsets.get(idx) + this.xScroll) * (0.01 / this.xZoom);
+      this.pointerCallback(idx, parseInt(Math.min(Math.max(p, 0), val.samples.length-1)))
     })
 
     // redraw the scene with the new rect positions
@@ -417,7 +421,7 @@ module.exports = class ComparisonChart {
     if(mx < this.yAxisWidth) {
       this.yZoom += scroll
     } else if (my >= (this.canvas.height - this.xAxisHeight)) {
-      this.xZoom = Math.max(this.xZoom + scroll, 0)
+      this.xZoom = Math.max(this.xZoom + scroll * this.xZoom, 0.0001)
     } 
     /*
     this.xScale += dx / 1000;
