@@ -21,7 +21,7 @@ module.exports = class ComparisonChart {
     this.currentX = 0, this.currentY = 0, this.currentZoom = 1
 
     this.xScroll = 0
-    this.xZoom = 0.1
+    this.xZoom = 0.01
 
     this.yScroll = 0
     this.yZoom = 2
@@ -42,7 +42,7 @@ module.exports = class ComparisonChart {
     window.addEventListener("keydown", this.keydown)
 
     this.YDIV = 20
-    this.XDIV = 75
+    this.XDIV = 50
     this.xLineHeight = 15
     this.xAxisHeight = this.xLineHeight * (this.elements.size)
     this.yAxisWidth = 40
