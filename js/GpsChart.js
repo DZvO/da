@@ -230,13 +230,19 @@ module.exports = class GpsChart {
 
     setTrack(trackname) {
       this.trackname = trackname
-      this.image = document.getElementById("track_" + trackname)
+      this.#loadImage("res/tracks/" + trackname + "/aerial.png").then(r => {
+        this.image = r;
+        this.draw();
+      })
 
       const content = fs.readFileSync("res/tracks/" + trackname + "/def.json", {encoding: "utf-8"})
       const data = JSON.parse(content)
-      console.log(data)
 
       this.finishline = data.startFinishLine
       this.trackdef = data.aerial
+    }
+
+    #loadImage(url) {
+      return new Promise(r => { let i = new Image(); i.onload = (() => r(i)); i.src = url; });
     }
   }
