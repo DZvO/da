@@ -252,12 +252,13 @@ lapFiles.forEach(element => {
       }
   })
   .filter(e => e.ts >= new Date("2022-12-10"))*/
-const gpsChart = new GpsChart("gpsChart", finishline)
+const gpsChart = new GpsChart("gpsChart")
 
 const lapList = new LapList(
   "lapList",
   laps,
-  (index, color) => {
+  (index, color, trackname) => {
+    gpsChart.setTrack(trackname)
     gpsChart.addElement(index, laps[index], color)
     gpsChart.draw()
     plot.addElement(index, laps[index], color)

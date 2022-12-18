@@ -1,9 +1,11 @@
+var fs = require('graceful-fs');
+
 module.exports = class GpsChart {
-    constructor(elementName, finishline) {
+    constructor(elementName) {
       this.elementName = elementName
       this.elements = new Map()
       this.colors = new Map()
-      this.finishline = finishline
+      this.finishline = null
       this.minX = 0, this.minY = 0, this.maxX = 0, this.maxY = 0;
       //this.setupMinXY()  
   
@@ -23,9 +25,9 @@ module.exports = class GpsChart {
       this.pointer = 0;
       this.pointers = new Map()
 
-      this.image = document.getElementById("trackOsl");
+      this.image = null
+      this.trackdef = null
 
-  
       this.canvas.addEventListener("mousedown", this.mouseDown)
       this.canvas.addEventListener("mouseup", this.mouseUp)
       this.canvas.addEventListener("mousemove", this.mouseMove)
@@ -77,20 +79,24 @@ module.exports = class GpsChart {
   
       const scale = Math.min(this.canvas.width / mapWidth, this.canvas.height / mapHeight) * 0.98;
 
-      const bgX = (11.268325 - mapCenterX) * scale + this.canvas.width / 2
-      const bgY = this.canvas.height - ((52.031677 - mapCenterY) * scale + this.canvas.height / 2)
-      const bgW = Math.abs(bgX - ((11.287551 - mapCenterX) * scale + this.canvas.width / 2))
-      const bgH = Math.abs(bgY - (this.canvas.height - ((52.024853 - mapCenterY) * scale + this.canvas.height / 2)))
 
-      this.ctx.save()
-      this.ctx.globalAlpha = 0.5
-      this.ctx.drawImage(this.image,
-        bgX,
-        bgY,
-        bgW,
-        bgH,
-      )
-      this.ctx.restore()
+      if(this.image != null) {
+        this.ctx.save()
+        this.ctx.globalAlpha = 0.5
+
+        const bgX = (this.trackdef.upperLeftLon - mapCenterX) * scale + this.canvas.width / 2
+        const bgY = this.canvas.height - ((this.trackdef.upperLeftLat - mapCenterY) * scale + this.canvas.height / 2)
+        const bgW = Math.abs(bgX - ((this.trackdef.lowerRightLon - mapCenterX) * scale + this.canvas.width / 2))
+        const bgH = Math.abs(bgY - (this.canvas.height - ((this.trackdef.lowerRightLat - mapCenterY) * scale + this.canvas.height / 2)))
+  
+        this.ctx.drawImage(this.image,
+          bgX,
+          bgY,
+          bgW,
+          bgH,
+        )
+       this.ctx.restore()
+      }
 
       this.elements.forEach((val, idx) => {
         this.ctx.beginPath();
@@ -107,18 +113,20 @@ module.exports = class GpsChart {
       })
       
 
-      this.ctx.beginPath();
-      this.ctx.strokeStyle = 'black'
-      this.ctx.lineCap = 'round'
-      this.ctx.moveTo(
-        (this.finishline.start.lon - mapCenterX) * scale + this.canvas.width / 2,
-        this.canvas.height - ((this.finishline.start.lat - mapCenterY) * scale + this.canvas.height / 2)
-      )
-      this.ctx.lineTo(
-        (this.finishline.end.lon - mapCenterX) * scale + this.canvas.width / 2,
-        this.canvas.height - ((this.finishline.end.lat - mapCenterY) * scale + this.canvas.height / 2)
-      );
-      this.ctx.stroke();
+      if(this.finishline != null) {
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = 'black'
+        this.ctx.lineCap = 'round'
+        this.ctx.moveTo(
+          (this.finishline.start.lon - mapCenterX) * scale + this.canvas.width / 2,
+          this.canvas.height - ((this.finishline.start.lat - mapCenterY) * scale + this.canvas.height / 2)
+        )
+        this.ctx.lineTo(
+          (this.finishline.end.lon - mapCenterX) * scale + this.canvas.width / 2,
+          this.canvas.height - ((this.finishline.end.lat - mapCenterY) * scale + this.canvas.height / 2)
+        );
+        this.ctx.stroke();
+      }
   
       this.pointers.forEach((val, idx) => {
         const centerX = (this.elements.get(idx).samples[val].lon - mapCenterX) * scale + this.canvas.width / 2;
@@ -218,5 +226,17 @@ module.exports = class GpsChart {
       this.pointers.delete(index)
       this.colors.delete(index)
       this.setupMinXY()
+    }
+
+    setTrack(trackname) {
+      this.trackname = trackname
+      this.image = document.getElementById("track_" + trackname)
+
+      const content = fs.readFileSync("res/tracks/" + trackname + "/def.json", {encoding: "utf-8"})
+      const data = JSON.parse(content)
+      console.log(data)
+
+      this.finishline = data.startFinishLine
+      this.trackdef = data.aerial
     }
   }

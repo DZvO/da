@@ -1,0 +1,13 @@
+{
+    "aerial": {
+        "upperLeftLat": 51.532977,
+        "upperLeftLon": 6.956631,
+        "lowerRightLat": 51.532028,
+        "lowerRightLon": 6.959394
+    },
+
+    "startFinishLine": {
+        "start": {"lat": 51.532792, "lon": 6.957120},
+        "end": {"lat": 51.532538, "lon": 6.957288}
+    }
+}

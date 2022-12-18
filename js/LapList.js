@@ -31,10 +31,14 @@ module.exports = class LapList {
             const user = document.createElement("td")
             user.textContent = "alex"
 
+            const trackname = document.createElement("td")
+            trackname.textContent = this.laps[i].track
+
             tr.appendChild(lapn)
             tr.appendChild(laptime)
             tr.appendChild(timeofday)
             tr.append(user)
+            tr.append(trackname)
 
             tr.setAttribute("id", "l" + i)
             tr.onclick = (e) => {
@@ -47,7 +51,7 @@ module.exports = class LapList {
                     tr.classList.add("selected")
                     const colorToUse = this.colors.shift()
                     tr.style.backgroundColor = colorToUse
-                    this.addCallback(i, tr.style.backgroundColor)
+                    this.addCallback(i, tr.style.backgroundColor, this.laps[i].track)
                 }
             }
             document.getElementById(this.elementName).appendChild(tr)
