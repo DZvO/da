@@ -65,3 +65,15 @@ document.querySelector('#buttonload').addEventListener('click', () => {
     fp.parseFiles();
   }, (e) => { alert(e); }).finally(() => { populateLaps(); alert("Finished"); });
 });
+
+window.setInterval(() => {
+  fetch('http://esp32.local/voltage').then(
+    async (response) => {
+      document.querySelector('#status').textContent = `battery: ${await response.text()}`
+    },
+    () => {
+      document.querySelector('#status').textContent = `not available`
+    }
+  )
+  
+}, 5000);
